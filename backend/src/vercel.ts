@@ -47,11 +47,13 @@ export default async function handler(
       const message = err instanceof Error ? err.message : String(err);
       console.error('[Vercel] App init failed:', message, err instanceof Error ? err.stack : '');
       const hint =
-        /DATABASE_URL|datasource|prisma|connection/i.test(message)
-          ? 'Set DATABASE_URL (Supabase) for Production in Vercel env.'
-          : /JWT|secret/i.test(message)
-            ? 'Set JWT_SECRET for Production in Vercel env.'
-            : 'Check Vercel Function logs and env (DATABASE_URL, JWT_SECRET).';
+        /DATABASE_URL|datasource|env/i.test(message) && !/connection|connect|ECONNREFUSED/i.test(message)
+          ? 'Set DATABASE_URL for Production and redeploy.'
+          : /connection|connect|ECONNREFUSED|timeout|pool/i.test(message)
+            ? 'DB connection failed. Use Supabase Session pooler URL; redeploy after changing env.'
+            : /JWT|secret/i.test(message)
+              ? 'Set JWT_SECRET for Production and redeploy.'
+              : 'Redeploy after setting env vars, then check Vercel → Logs for the real error.';
       sendJson(res, 503, {
         error: 'FUNCTION_INIT_FAILED',
         message: hint,
