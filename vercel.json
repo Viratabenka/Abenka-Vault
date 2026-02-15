@@ -5,7 +5,7 @@
   "installCommand": "npm run install:all",
   "framework": null,
   "functions": {
-    "api/[[...path]].ts": {
+    "api/catchall.ts": {
       "memory": 1024,
       "maxDuration": 30,
       "includeFiles": "api/backend-dist/**"
@@ -20,7 +20,7 @@
     }
   ],
   "rewrites": [
-    { "source": "/api", "destination": "/api" },
-    { "source": "/api/:path*", "destination": "/api/:path*" }
+    { "source": "/api", "destination": "/api/catchall" },
+    { "source": "/api/(.*)", "destination": "/api/catchall?__path=$1" }
   ]
 }
