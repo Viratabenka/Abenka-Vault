@@ -248,9 +248,6 @@ export default function CompanyDashboard() {
   const [data, setData] = useState<Dashboard | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const refresh = () => {
-    companyApi.dashboard().then(setData).catch((e) => setError(e.message));
-  };
 
   useEffect(() => {
     companyApi.dashboard().then(setData).catch((e) => setError(e.message)).finally(() => setLoading(false));
