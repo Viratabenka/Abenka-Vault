@@ -1,6 +1,7 @@
+import type { Application } from 'express';
 import { createApp } from './bootstrap';
 
-let cachedServer: ReturnType<ReturnType<typeof createApp>['getHttpAdapter']['getInstance']> | null = null;
+let cachedServer: Application | null = null;
 
 /**
  * Serverless entry for Vercel. NestJS app is created once per cold start and cached.
