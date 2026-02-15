@@ -83,6 +83,7 @@ Check **Vercel → Logs** or the deployment **Functions** tab for the exact erro
 - **Cause:** A build step failed (backend, copy script, or frontend). Open the failed deployment in Vercel → **Building** tab and scroll to the **first red/error line** to see the exact failure (e.g. TypeScript error, Prisma, "ENOENT", "Cannot find module").
 - **Prisma:** The schema sets `binaryTargets = ["native", "rhel-openssl-3.0.x"]` for Vercel’s Linux runtime. If you see a Prisma binary error, ensure your Prisma version supports `rhel-openssl-3.0.x`.
 - **Copy script:** If the error is "backend/dist/src not found", the backend build failed earlier; fix that step first.
+- **"could not determine executable to run" for nest:** Vercel may set `NODE_ENV=production` so `npm install` skips devDependencies. The root scripts use `npm install --include=dev` so the Nest CLI (`@nestjs/cli`) is installed and `npx nest build` works.
 
 ## 9. Build failed with exit code 127 ("command not found")
 
