@@ -1,4 +1,4 @@
-import type { Application, Request, Response, NextFunction } from 'express';
+import type { Application, Express, Request, Response, NextFunction } from 'express';
 import { createApp } from './bootstrap';
 
 // Use require so express works in Vercel runtime (no ESM .default interop issue)
@@ -41,7 +41,7 @@ export default async function handler(
     try {
       const expressApp = createExpressApp();
       expressApp.use(captureVercelBody);
-      const app = await createApp(expressApp);
+      const app = await createApp(expressApp as Express);
       cachedServer = app.getHttpAdapter().getInstance();
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
