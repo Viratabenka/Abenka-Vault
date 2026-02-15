@@ -62,7 +62,11 @@ The app will be served at `https://your-app.vercel.app`; the API is at `https://
 - Optionally run the seed for initial users:  
   `cd backend && npx prisma db seed`
 
-## 6. Troubleshooting "Serverless Function has crashed" (500 / FUNCTION_INVOCATION_FAILED)
+## 6. Why the API route needs `backend/dist` and `backend/node_modules`
+
+The serverless function at `api/[[...path]].ts` loads the Nest app from `backend/dist/vercel`. So the deployment must include `backend/dist` and `backend/node_modules` (for Nest/Prisma). This is done via `vercel.json` → `functions` → `includeFiles`: `["backend/dist/**", "backend/node_modules/**"]`. Do not remove these or you’ll see: `Cannot find module '/var/task/backend/dist/vercel'`.
+
+## 7. Troubleshooting "Serverless Function has crashed" (500 / FUNCTION_INVOCATION_FAILED)
 
 - **Check Vercel logs:** Project → Deployments → select deployment → **Functions** tab, or **Logs**. The real error (e.g. missing `DATABASE_URL`, Prisma, init failure) appears there.
 - **Health check:** Open `https://your-app.vercel.app/api/health`. If you get 503 or 500, read the response body and the Function logs.
