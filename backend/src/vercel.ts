@@ -61,6 +61,14 @@ export default async function handler(
       return;
     }
   }
+  // Ensure Express sees the full path so Nest's global prefix "api" matches (Vercel may pass path without /api)
+  const rawReq = req as import('http').IncomingMessage & { url?: string };
+  const path = (rawReq.url || '/').split('?')[0];
+  if (!path.startsWith('/api')) {
+    const q = (rawReq.url || '').includes('?') ? '?' + (rawReq.url || '').split('?')[1] : '';
+    rawReq.url = '/api' + (path === '/' ? '' : path) + q;
+  }
+
   return new Promise((resolve) => {
     cachedServer!(req as any, res as any, (err: unknown) => {
       if (err) {
