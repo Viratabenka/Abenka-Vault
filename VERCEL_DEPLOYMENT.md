@@ -66,7 +66,25 @@ The app will be served at `https://your-app.vercel.app`; the API is at `https://
 
 The serverless function at `api/[[...path]].ts` loads the Nest app with `require(__dirname + '/backend-dist/src/vercel')` (Nest outputs to `dist/src/`). During the root build, `scripts/copy-backend-to-api.cjs` copies `backend/dist` and `backend/node_modules` into `api/backend-dist/`, so the function is self-contained and does not rely on `process.cwd()` or Vercel’s `includeFiles`. Do not remove the copy step or you’ll see: `Cannot find module '/var/task/api/backend-dist/...'`.
 
-## 7. Troubleshooting "Serverless Function has crashed" (500 / FUNCTION_INVOCATION_FAILED)
+## 7. If you see `FUNCTION_INIT_FAILED` (503)
+
+The backend failed to start. Almost always this is **missing env for Production**:
+
+1. In Vercel go to **Project → Settings → Environment Variables**.
+2. Ensure **Production** is checked (not only Pre-Production) for:
+   - **`DATABASE_URL`** – Your Supabase Postgres URL (e.g. `postgresql://postgres.PROJECT:PASSWORD@...pooler.supabase.com:5432/postgres`). Copy from `backend/.env`.
+   - **`JWT_SECRET`** – Same value as in `backend/.env`.
+3. **Redeploy**: Deployments → … → Redeploy (or push a commit). Env changes need a new deploy.
+
+Check **Vercel → Logs** or the deployment **Functions** tab for the exact error (e.g. "DATABASE_URL is not defined" or Prisma connection error).
+
+## 8. Build failed with exit code 127 ("command not found")
+
+- **Cause:** A command in the build (e.g. `nest`, `node`, `npm`) wasn’t found. The project is set up to use `npm install` (not `npm ci`) and `npx nest build` so CLIs are run via `npx`.
+- **Check:** In Vercel, open the failed deployment → **Building** tab and find the **exact line** where it fails (the command before the 127).
+- **Fix:** Ensure **Install Command** is `npm run install:all` and **Build Command** is `npm run build`. If 127 persists, in Vercel → Settings → General, set **Node.js Version** to 18.x or 20.x.
+
+## 9. Troubleshooting "Serverless Function has crashed" (500 / FUNCTION_INVOCATION_FAILED)
 
 - **Check Vercel logs:** Project → Deployments → select deployment → **Functions** tab, or **Logs**. The real error (e.g. missing `DATABASE_URL`, Prisma, init failure) appears there.
 - **Health check:** Open `https://your-app.vercel.app/api/health`. If you get 503 or 500, read the response body and the Function logs.

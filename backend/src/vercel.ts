@@ -46,9 +46,15 @@ export default async function handler(
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       console.error('[Vercel] App init failed:', message, err instanceof Error ? err.stack : '');
+      const hint =
+        /DATABASE_URL|datasource|prisma|connection/i.test(message)
+          ? 'Set DATABASE_URL (Supabase) for Production in Vercel env.'
+          : /JWT|secret/i.test(message)
+            ? 'Set JWT_SECRET for Production in Vercel env.'
+            : 'Check Vercel Function logs and env (DATABASE_URL, JWT_SECRET).';
       sendJson(res, 503, {
         error: 'FUNCTION_INIT_FAILED',
-        message: 'Backend failed to start. Check Vercel Function logs and env (DATABASE_URL, JWT_SECRET).',
+        message: hint,
       });
       return;
     }
