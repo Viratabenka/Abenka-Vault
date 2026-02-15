@@ -1,6 +1,10 @@
-import express from 'express';
-import type { Application } from 'express';
+import type { Application, Request, Response, NextFunction } from 'express';
 import { createApp } from './bootstrap';
+
+// Use require so express works in Vercel runtime (no ESM .default interop issue)
+const expressLib = require('express');
+const createExpressApp: () => Application =
+  typeof expressLib === 'function' ? expressLib : expressLib.default;
 
 let cachedServer: Application | null = null;
 
@@ -9,12 +13,8 @@ let cachedServer: Application | null = null;
  * already-consumed stream and set req.body to {}. This middleware runs first and stores
  * Vercel's parsed body so bootstrap can restore it after Express runs.
  */
-function captureVercelBody(
-  req: express.Request,
-  _res: express.Response,
-  next: express.NextFunction,
-): void {
-  const r = req as express.Request & { body?: unknown; _vercelBody?: unknown };
+function captureVercelBody(req: Request, _res: Response, next: NextFunction): void {
+  const r = req as Request & { body?: unknown; _vercelBody?: unknown };
   if (r.body !== undefined && r.body !== null) r._vercelBody = r.body;
   next();
 }
@@ -39,7 +39,7 @@ export default async function handler(
 ): Promise<void> {
   if (!cachedServer) {
     try {
-      const expressApp = express();
+      const expressApp = createExpressApp();
       expressApp.use(captureVercelBody);
       const app = await createApp(expressApp);
       cachedServer = app.getHttpAdapter().getInstance();
