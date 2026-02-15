@@ -26,6 +26,15 @@ export async function createApp(expressApp?: express.Express): Promise<INestAppl
     }),
   );
   app.useGlobalFilters(new CentralizedExceptionFilter());
+  // On Vercel, restore request body from capture so Nest gets email/password for login
+  if (process.env.VERCEL) {
+    const expressApp = app.getHttpAdapter().getInstance();
+    expressApp.use((req: express.Request, _res: express.Response, next: express.NextFunction) => {
+      const r = req as express.Request & { _vercelBody?: unknown };
+      if (r._vercelBody !== undefined) (req as any).body = r._vercelBody;
+      next();
+    });
+  }
   const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
   const corsOrigins = frontendUrl.split(',').map((s) => s.trim()).filter(Boolean);
   if (corsOrigins.length === 0) corsOrigins.push('http://localhost:5173');

@@ -31,6 +31,17 @@ Vercel does **not** read a `.env` file from the repo. Add the same variables you
 
 Optional (for Supabase Storage / attachments): `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_KEY`.
 
+**Important:** Set the scope to **Production** (and Preview if needed). If variables are only set for "Pre-Production", production at `https://abenka-vault.vercel.app` will not have them and login will fail.
+
+**Checklist:**
+
+| Variable | Correct value for production | Common mistake |
+|----------|------------------------------|----------------|
+| `FRONTEND_URL` | `https://abenka-vault.vercel.app` | `http://localhost:5173` breaks CORS and login |
+| `NODE_ENV` | `production` | `development` can cause wrong behavior in prod |
+| `SUPABASE_ANON_KEY` | Your real key from Supabase dashboard | Placeholder `your_supabase_anon_key` will break Supabase features |
+| `SUPABASE_SERVICE_KEY` | Your real service role key from Supabase | Placeholder will break signed URLs / server-side Supabase |
+
 Apply to **Production** (and **Preview** if you use preview deployments). Then **redeploy** so the new variables are used.
 
 ## 4. Deploy
