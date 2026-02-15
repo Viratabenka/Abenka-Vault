@@ -94,6 +94,7 @@ export const projectsApi = {
     api<{ id: string; name: string }>('/projects', { method: 'POST', body: JSON.stringify(dto) }),
   update: (id: string, dto: { name?: string; endDate?: string; budget?: number; monthlyRevenuePipeline?: number }) =>
     api(`/projects/${id}`, { method: 'PUT', body: JSON.stringify(dto) }),
+  delete: (id: string) => api(`/projects/${id}`, { method: 'DELETE' }),
   getMembers: (projectId: string) =>
     api<Array<{ userId: string; user: { id: string; name: string; email: string; role: string } }>>(
       `/members-of-project/${projectId}`,

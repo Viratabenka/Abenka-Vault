@@ -125,8 +125,13 @@ export class ProjectsService {
     });
   }
 
+  /** Only Admin can delete projects (including those created by Founders). */
   async remove(id: string, userId: string, role: Role) {
-    await this.findOne(id, userId, role);
+    if (role !== Role.ADMIN) {
+      throw new ForbiddenException('Only Admin can delete projects');
+    }
+    const project = await this.prisma.project.findUnique({ where: { id } });
+    if (!project) throw new NotFoundException('Project not found');
     return this.prisma.project.delete({ where: { id } });
   }
 }

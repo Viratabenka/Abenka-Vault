@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { projectsApi, contributionsApi } from '../api/client';
 
@@ -8,6 +8,7 @@ type ProjectMember = { userId: string; user: { id: string; name: string; email: 
 
 export default function ProjectDetail() {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const { user } = useAuth();
   const [project, setProject] = useState<Awaited<ReturnType<typeof projectsApi.get>> | null>(null);
   const [contributions, setContributions] = useState<Contribution[]>([]);
@@ -24,6 +25,8 @@ export default function ProjectDetail() {
   const [loadingAssignable, setLoadingAssignable] = useState(false);
   const isAdmin = user?.role === 'ADMIN' || user?.role === 'ACCOUNTANT';
   const canAssignMembers = isAdmin;
+  const canDeleteProject = user?.role === 'ADMIN';
+  const [deleting, setDeleting] = useState(false);
 
   const loadAssignableUsers = () => {
     if (!id) return;
@@ -91,6 +94,21 @@ export default function ProjectDetail() {
     }
   };
 
+  const handleDeleteProject = async () => {
+    if (!id || !project) return;
+    if (!window.confirm(`Delete project "${project.name}"? This cannot be undone.`)) return;
+    setDeleting(true);
+    setError('');
+    try {
+      await projectsApi.delete(id);
+      navigate('/projects');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to delete project');
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   const handleRemoveMember = async (memberUserId: string) => {
     if (!id) return;
     try {
@@ -138,9 +156,21 @@ export default function ProjectDetail() {
           <button type="button" onClick={() => setError('')} className="text-red-400 hover:text-red-300">Dismiss</button>
         </div>
       )}
-      <Link to="/projects" className="text-brand-400 hover:underline text-sm mb-4 inline-block">
-        ← Projects
-      </Link>
+      <div className="flex items-center justify-between gap-4 mb-4">
+        <Link to="/projects" className="text-brand-400 hover:underline text-sm">
+          ← Projects
+        </Link>
+        {canDeleteProject && (
+          <button
+            type="button"
+            onClick={handleDeleteProject}
+            disabled={deleting}
+            className="px-3 py-1.5 rounded-lg border border-red-500/50 text-red-400 hover:bg-red-500/10 text-sm disabled:opacity-50"
+          >
+            {deleting ? 'Deleting…' : 'Delete project'}
+          </button>
+        )}
+      </div>
       <h1 className="font-display text-2xl font-semibold text-white mb-2">{project.name}</h1>
       <p className="text-slate-400 text-sm mb-6">Owner: {project.owner?.name}</p>
 

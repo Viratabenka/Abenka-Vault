@@ -20,10 +20,26 @@ export default function Projects() {
   const [startDate, setStartDate] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const isAdmin = user?.role === 'ADMIN' || user?.role === 'ACCOUNTANT';
+  const canDeleteProjects = user?.role === 'ADMIN';
 
   useEffect(() => {
     projectsApi.list().then(setList).catch((e) => setError(e.message)).finally(() => setLoading(false));
   }, []);
+
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  const handleDelete = async (projectId: string, projectName: string) => {
+    if (!window.confirm(`Delete project "${projectName}"? This cannot be undone.`)) return;
+    setDeletingId(projectId);
+    try {
+      await projectsApi.delete(projectId);
+      setList((prev) => prev.filter((p) => p.id !== projectId));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete project');
+    } finally {
+      setDeletingId(null);
+    }
+  };
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -108,14 +124,26 @@ export default function Projects() {
                 </span>
               )}
             </Link>
-            {isAdmin && (
-              <Link
-                to={`/projects/${p.id}`}
-                className="ml-3 px-3 py-1.5 rounded-lg bg-vault-dark border border-vault-border text-slate-300 hover:text-white text-sm shrink-0"
-              >
-                Assign users
-              </Link>
-            )}
+            <div className="ml-3 flex items-center gap-2 shrink-0">
+              {isAdmin && (
+                <Link
+                  to={`/projects/${p.id}`}
+                  className="px-3 py-1.5 rounded-lg bg-vault-dark border border-vault-border text-slate-300 hover:text-white text-sm"
+                >
+                  Assign users
+                </Link>
+              )}
+              {canDeleteProjects && (
+                <button
+                  type="button"
+                  onClick={() => handleDelete(p.id, p.name)}
+                  disabled={deletingId === p.id}
+                  className="px-3 py-1.5 rounded-lg border border-red-500/50 text-red-400 hover:bg-red-500/10 text-sm disabled:opacity-50"
+                >
+                  {deletingId === p.id ? 'Deleting…' : 'Delete'}
+                </button>
+              )}
+            </div>
           </div>
         ))}
       </div>
