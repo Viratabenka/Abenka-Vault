@@ -3,5 +3,5 @@
  * Backend is copied to api/backend-dist during build (scripts/copy-backend-to-api.cjs).
  */
 const path = require('path');
-const handler = require(path.join(__dirname, 'backend-dist', 'src', 'vercel')).default;
+const handler = require(path.join(__dirname, 'backend-dist', 'vercel')).default;
 module.exports = handler;

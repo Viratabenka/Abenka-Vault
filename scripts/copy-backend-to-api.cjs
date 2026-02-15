@@ -8,11 +8,11 @@ const path = require('path');
 
 const root = path.join(__dirname, '..');
 const apiBackendDist = path.join(root, 'api', 'backend-dist');
-const backendDist = path.join(root, 'backend', 'dist');
+const backendDistSrc = path.join(root, 'backend', 'dist', 'src');
 const backendNodeModules = path.join(root, 'backend', 'node_modules');
 
-if (!fs.existsSync(backendDist)) {
-  console.error('Run root build first (backend/dist not found).');
+if (!fs.existsSync(backendDistSrc)) {
+  console.error('Run root build first (backend/dist/src not found).');
   process.exit(1);
 }
 
@@ -21,7 +21,8 @@ if (fs.existsSync(apiBackendDist)) {
 }
 fs.mkdirSync(apiBackendDist, { recursive: true });
 
-fs.cpSync(backendDist, apiBackendDist, { recursive: true });
+// Copy dist/src so vercel.js is at api/backend-dist/vercel.js (path used by api/[[...path]].ts)
+fs.cpSync(backendDistSrc, apiBackendDist, { recursive: true });
 fs.cpSync(backendNodeModules, path.join(apiBackendDist, 'node_modules'), { recursive: true });
 
-console.log('Copied backend/dist and backend/node_modules to api/backend-dist');
+console.log('Copied backend/dist/src and backend/node_modules to api/backend-dist');
