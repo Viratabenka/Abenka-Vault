@@ -18,3 +18,4 @@ api/backend-dist/
 # Prisma
 backend/prisma/*.db
 backend/prisma/*.db-journal
+backend/.prisma-gen/

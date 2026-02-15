@@ -78,15 +78,39 @@ The backend failed to start. Almost always this is **missing env for Production*
 
 Check **Vercel → Logs** or the deployment **Functions** tab for the exact error (e.g. "DATABASE_URL is not defined" or Prisma connection error).
 
-## 8. Build failed with exit code 127 ("command not found")
+## 8. Build failed with exit code 1
+
+- **Cause:** A build step failed (backend, copy script, or frontend). Open the failed deployment in Vercel → **Building** tab and scroll to the **first red/error line** to see the exact failure (e.g. TypeScript error, Prisma, "ENOENT", "Cannot find module").
+- **Prisma:** The schema sets `binaryTargets = ["native", "rhel-openssl-3.0.x"]` for Vercel’s Linux runtime. If you see a Prisma binary error, ensure your Prisma version supports `rhel-openssl-3.0.x`.
+- **Copy script:** If the error is "backend/dist/src not found", the backend build failed earlier; fix that step first.
+
+## 9. Build failed with exit code 127 ("command not found")
 
 - **Cause:** A command in the build (e.g. `nest`, `node`, `npm`) wasn’t found. The project is set up to use `npm install` (not `npm ci`) and `npx nest build` so CLIs are run via `npx`.
 - **Check:** In Vercel, open the failed deployment → **Building** tab and find the **exact line** where it fails (the command before the 127).
 - **Fix:** Ensure **Install Command** is `npm run install:all` and **Build Command** is `npm run build`. If 127 persists, in Vercel → Settings → General, set **Node.js Version** to 18.x or 20.x.
 
-## 9. Troubleshooting "Serverless Function has crashed" (500 / FUNCTION_INVOCATION_FAILED)
+## 10. Troubleshooting "Serverless Function has crashed" (500 / FUNCTION_INVOCATION_FAILED)
 
 - **Check Vercel logs:** Project → Deployments → select deployment → **Functions** tab, or **Logs**. The real error (e.g. missing `DATABASE_URL`, Prisma, init failure) appears there.
 - **Health check:** Open `https://your-app.vercel.app/api/health`. If you get 503 or 500, read the response body and the Function logs.
 - **Env:** Ensure `DATABASE_URL` and `JWT_SECRET` are set for **Production** (not only Pre-Production).
 - The backend uses **bcryptjs** (not bcrypt) so it runs on Vercel without native module issues.
+
+## 11. Local build on Windows: EPERM during `prisma generate`
+
+If you see **`EPERM: operation not permitted, rename ... query_engine-windows.dll.node`** (or **`EPERM` / `EPIPE` on `node_modules\.prisma\client`**), something on your machine is locking that path—usually **Cursor/IDE**, antivirus, or another Node process.
+
+**Reliable workaround:**
+
+1. **Quit Cursor completely** (File → Exit / close the app).
+2. Open **Windows Terminal** or **Command Prompt** from the Start menu (not from Cursor).
+3. Run:
+   ```bash
+   cd "c:\gitcode_abenka\Abenka Vault"
+   npm run install:all
+   npm run build
+   ```
+4. If it still fails: run that terminal **as Administrator**, or temporarily **exclude the project folder** from Windows Defender real-time scan.
+
+**Note:** This only affects your **local** Windows build. **Vercel** builds on Linux and does not hit this error; you can push and let Vercel build.
