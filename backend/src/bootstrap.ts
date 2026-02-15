@@ -29,9 +29,12 @@ export async function createApp(expressApp?: express.Express): Promise<INestAppl
   const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
   const corsOrigins = frontendUrl.split(',').map((s) => s.trim()).filter(Boolean);
   if (corsOrigins.length === 0) corsOrigins.push('http://localhost:5173');
+  if (process.env.VERCEL && process.env.VERCEL_URL)
+    corsOrigins.push(`https://${process.env.VERCEL_URL}`);
   app.enableCors({
     origin: (origin, cb) => {
       if (!origin || corsOrigins.some((o) => origin === o)) return cb(null, true);
+      if (process.env.VERCEL && origin && /^https:\/\/[\w-]+\.vercel\.app$/.test(origin)) return cb(null, true);
       if (process.env.NODE_ENV === 'development' && /^https?:\/\/localhost(:\d+)?$/.test(origin))
         return cb(null, true);
       return cb(null, false);

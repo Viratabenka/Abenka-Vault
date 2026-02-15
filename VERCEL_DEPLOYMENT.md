@@ -15,17 +15,23 @@ Vercel will use `vercel.json` and the root `package.json`:
 
 No need to change Framework Preset (set to Other / None).
 
-## 3. Environment variables
+## 3. Environment variables (required for Supabase)
 
-In the Vercel project → **Settings → Environment Variables**, add:
+Vercel does **not** read a `.env` file from the repo. Add the same variables you use locally:
+
+1. Open your local **`backend/.env`** (or use **`backend/.env.example`** as a reference).
+2. In Vercel: **Project → Settings → Environment Variables**.
+3. Add each variable from your `.env` (copy name and value). Minimum for login and Supabase:
 
 | Variable         | Description |
 |------------------|-------------|
-| `DATABASE_URL`   | Supabase PostgreSQL connection string (same as local) |
-| `JWT_SECRET`     | Secret used to sign JWTs (use a long random string) |
-| `FRONTEND_URL`   | Your Vercel app URL, e.g. `https://your-app.vercel.app` |
+| `DATABASE_URL`   | Supabase PostgreSQL connection string (same as in `backend/.env`) |
+| `JWT_SECRET`     | Same secret as local (e.g. long random string) |
+| `FRONTEND_URL`   | Your Vercel app URL, e.g. `https://abenka-vault.vercel.app` |
 
-Apply these to **Production**, and optionally to Preview.
+Optional (for Supabase Storage / attachments): `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_KEY`.
+
+Apply to **Production** (and **Preview** if you use preview deployments). Then **redeploy** so the new variables are used.
 
 ## 4. Deploy
 
