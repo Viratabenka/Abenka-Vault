@@ -12,6 +12,9 @@ dist/
 *.log
 .DS_Store
 
+# Vercel API: backend copied here at build time
+api/backend-dist/
+
 # Prisma
 backend/prisma/*.db
 backend/prisma/*.db-journal
