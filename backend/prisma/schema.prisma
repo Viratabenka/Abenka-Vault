@@ -1,0 +1,235 @@
+// Abenka Vault - Prisma Schema
+// Secure equity, clear contributions.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  FOUNDER
+  ADMIN
+  ACCOUNTANT
+}
+
+enum ContributionType {
+  TIME
+  CASH
+  OTHER
+}
+
+enum PayoutType {
+  HOURLY
+  PROFIT
+}
+
+enum PayoutStatus {
+  PENDING
+  EXECUTED
+  DEFERRED_TO_EQUITY
+  CANCELLED
+}
+
+enum RevenueEntryType {
+  MONTHLY_REVENUE
+  ONE_TIME_REVENUE
+  EXPENSE
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  passwordHash  String    @map("password_hash")
+  name          String
+  role          Role      @default(FOUNDER)
+  hourlyRate    Decimal?  @map("hourly_rate") @db.Decimal(12, 2)
+  walletInfo    String?   @map("wallet_info")  // encrypted or masked
+  bankInfo      String?   @map("bank_info")   // encrypted or masked
+  twoFactorSecret String? @map("two_factor_secret")
+  twoFactorEnabled Boolean @default(false) @map("two_factor_enabled")
+  invitedBy     String?   @map("invited_by")
+  invitedAt     DateTime? @map("invited_at")
+  emailVerified Boolean   @default(false) @map("email_verified")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  contributions      Contribution[]
+  ownedProjects      Project[]         @relation("ProjectOwner")
+  projectMemberships ProjectMember[]
+  equityAllocations  EquityAllocation[]
+  payouts            Payout[]
+  auditLogs          AuditLog[]
+  invitedUsers       User[]            @relation("UserInvites")
+  invitedByUser      User?             @relation("UserInvites", fields: [invitedBy], references: [id])
+}
+
+model Project {
+  id                    String    @id @default(cuid())
+  name                  String
+  ownerId               String    @map("owner_id")
+  startDate             DateTime  @map("start_date") @db.Date
+  endDate               DateTime? @map("end_date")   @db.Date
+  budget                Decimal?  @db.Decimal(14, 2)
+  monthlyRevenuePipeline Decimal?  @map("monthly_revenue_pipeline") @db.Decimal(14, 2) // One-time per project, tracked for phase-wise revenue (15 lakh target)
+  createdAt             DateTime  @default(now()) @map("created_at")
+  updatedAt             DateTime  @updatedAt @map("updated_at")
+
+  owner            User                 @relation("ProjectOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  contributions    Contribution[]
+  members          ProjectMember[]
+  revenueEntries   ProjectRevenueEntry[]
+}
+
+model ProjectRevenueEntry {
+  id          String           @id @default(cuid())
+  projectId   String           @map("project_id")
+  type        RevenueEntryType
+  amount      Decimal          @db.Decimal(14, 2)
+  periodMonth String?          @map("period_month") @db.VarChar(7) // YYYY-MM for monthly
+  entryDate   DateTime         @map("entry_date") @db.Date
+  notes       String?
+  createdAt   DateTime         @default(now()) @map("created_at")
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+  @@index([type])
+  @@index([periodMonth])
+}
+
+model ProjectMember {
+  id          String   @id @default(cuid())
+  projectId   String   @map("project_id")
+  userId      String   @map("user_id")
+  assignedById String? @map("assigned_by_id")
+  assignedAt  DateTime @default(now()) @map("assigned_at")
+
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, userId])
+  @@index([userId])
+  @@index([projectId])
+}
+
+model CompanyPhase {
+  id                      String   @id @default(cuid())
+  name                    String   // Sprout, Survival, Growth, Mature, Giant
+  equityPoolPercent       Decimal? @map("equity_pool_percent") @db.Decimal(5, 2)
+  equityPoolQty           Int      @map("equity_pool_qty")     // 1500 or 3000
+  monthlySalesTargetLabel String   @map("monthly_sales_target_label") // e.g. "Upto 10 Lakh/Month"
+  salesWeightageMultiplier Decimal? @map("sales_weightage_multiplier") @db.Decimal(8, 2) // 4, 3, 2, 1 or null for Giant
+  notionalSalaryNotes     String?  @map("notional_salary_notes") // "10% on Sales 5% on Renewal", "1500 Rs/Hr"
+  sortOrder               Int      @map("sort_order")
+  createdAt               DateTime @default(now()) @map("created_at")
+  updatedAt               DateTime @updatedAt @map("updated_at")
+
+  @@index([sortOrder])
+}
+
+model Contribution {
+  id             String           @id @default(cuid())
+  userId         String           @map("user_id")
+  projectId      String           @map("project_id")
+  type           ContributionType
+  hours          Decimal?         @db.Decimal(10, 2)
+  amount         Decimal?         @db.Decimal(14, 2)
+  otherPoints    Decimal?         @map("other_points") @db.Decimal(14, 2)
+  points         Decimal?         @db.Decimal(14, 2)   // computed: hours*time_weight + amount*cash_weight + other
+  date           DateTime         @db.Date
+  notes          String?
+  attachmentUrl  String?           @map("attachment_url")
+  deferToEquity  Boolean          @default(false) @map("defer_to_equity")
+  conversionRate Decimal?         @map("conversion_rate") @db.Decimal(10, 4)
+  createdAt      DateTime         @default(now()) @map("created_at")
+  updatedAt      DateTime         @updatedAt @map("updated_at")
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([projectId])
+  @@index([date])
+}
+
+model WeightsConfig {
+  id           String   @id @default(cuid())
+  timeWeight   Decimal  @map("time_weight")   @db.Decimal(8, 4)
+  cashWeight   Decimal  @map("cash_weight")   @db.Decimal(8, 4)
+  otherWeight  Decimal  @map("other_weight")  @db.Decimal(8, 4)
+  scope        String   @default("company")   // "company" | projectId
+  projectId    String?  @map("project_id")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  @@unique([scope, projectId])
+  @@index([projectId])
+}
+
+model EquityAllocation {
+  id             String   @id @default(cuid())
+  userId         String   @map("user_id")
+  points         Decimal  @db.Decimal(14, 2)
+  totalPoints    Decimal  @map("total_points") @db.Decimal(14, 2)
+  sharesAllocated Decimal @map("shares_allocated") @db.Decimal(10, 4)  // equity %
+  vestingStart   DateTime @map("vesting_start") @db.Date
+  cliffMonths    Int      @map("cliff_months")
+  vestingMonths  Int      @map("vesting_months")
+  projectId      String?  @map("project_id")   // null = company-wide
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([projectId])
+}
+
+model Payout {
+  id        String       @id @default(cuid())
+  userId    String       @map("user_id")
+  amount    Decimal      @db.Decimal(14, 2)
+  type      PayoutType
+  status    PayoutStatus @default(PENDING)
+  periodStart DateTime?  @map("period_start") @db.Date
+  periodEnd   DateTime?  @map("period_end")   @db.Date
+  date      DateTime     @db.Date
+  notes     String?
+  createdAt DateTime     @default(now()) @map("created_at")
+  updatedAt DateTime     @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([status])
+  @@index([date])
+}
+
+model ProfitPool {
+  id          String   @id @default(cuid())
+  periodStart DateTime @map("period_start") @db.Date
+  periodEnd   DateTime @map("period_end")   @db.Date
+  amount      Decimal  @db.Decimal(14, 2)
+  allocated   Boolean  @default(false)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String?  @map("user_id")
+  action    String
+  entity    String?
+  entityId  String?  @map("entity_id")
+  payload   Json?
+  timestamp DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([action])
+  @@index([timestamp])
+}

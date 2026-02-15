@@ -1,0 +1,17 @@
+# Dependencies
+node_modules/
+
+# Env and secrets
+.env
+.env.local
+.env.*.local
+
+# Build / IDE
+dist/
+.vercel
+*.log
+.DS_Store
+
+# Prisma
+backend/prisma/*.db
+backend/prisma/*.db-journal
