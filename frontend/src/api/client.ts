@@ -11,6 +11,7 @@ export async function api<T>(
   const token = getToken();
   const res = await fetch(`${API}${path}`, {
     ...options,
+    credentials: 'same-origin',
     headers: {
       'Content-Type': 'application/json',
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
