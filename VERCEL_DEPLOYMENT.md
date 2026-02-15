@@ -64,7 +64,7 @@ The app will be served at `https://your-app.vercel.app`; the API is at `https://
 
 ## 6. How the API route gets the backend
 
-The serverless function at `api/[[...path]].ts` loads the Nest app with `require(__dirname + '/backend-dist/vercel')`. During the root build, `scripts/copy-backend-to-api.cjs` copies `backend/dist` and `backend/node_modules` into `api/backend-dist/`, so the function is self-contained and does not rely on `process.cwd()` or Vercel’s `includeFiles`. Do not remove the copy step or you’ll see: `Cannot find module '/var/task/backend/dist/vercel'`.
+The serverless function at `api/[[...path]].ts` loads the Nest app with `require(__dirname + '/backend-dist/src/vercel')` (Nest outputs to `dist/src/`). During the root build, `scripts/copy-backend-to-api.cjs` copies `backend/dist` and `backend/node_modules` into `api/backend-dist/`, so the function is self-contained and does not rely on `process.cwd()` or Vercel’s `includeFiles`. Do not remove the copy step or you’ll see: `Cannot find module '/var/task/api/backend-dist/...'`.
 
 ## 7. Troubleshooting "Serverless Function has crashed" (500 / FUNCTION_INVOCATION_FAILED)
 
