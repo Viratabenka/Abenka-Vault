@@ -17,6 +17,10 @@ export async function createApp(expressApp?: express.Express): Promise<INestAppl
   });
   const prefix = process.env.API_PREFIX || 'api';
   app.setGlobalPrefix(prefix);
+  server.use((_req, res, next) => {
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+    next();
+  });
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,

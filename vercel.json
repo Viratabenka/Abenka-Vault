@@ -10,5 +10,17 @@
       "maxDuration": 30,
       "includeFiles": "api/backend-dist/**"
     }
-  }
+  },
+  "headers": [
+    {
+      "source": "/api/(.*)",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-store, no-cache, must-revalidate" }
+      ]
+    }
+  ],
+  "rewrites": [
+    { "source": "/api", "destination": "/api" },
+    { "source": "/api/:path*", "destination": "/api/:path*" }
+  ]
 }
