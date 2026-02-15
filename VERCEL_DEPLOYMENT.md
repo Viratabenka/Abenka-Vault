@@ -61,3 +61,10 @@ The app will be served at `https://your-app.vercel.app`; the API is at `https://
   `cd backend && npx prisma migrate deploy`
 - Optionally run the seed for initial users:  
   `cd backend && npx prisma db seed`
+
+## 6. Troubleshooting "Serverless Function has crashed" (500 / FUNCTION_INVOCATION_FAILED)
+
+- **Check Vercel logs:** Project → Deployments → select deployment → **Functions** tab, or **Logs**. The real error (e.g. missing `DATABASE_URL`, Prisma, init failure) appears there.
+- **Health check:** Open `https://your-app.vercel.app/api/health`. If you get 503 or 500, read the response body and the Function logs.
+- **Env:** Ensure `DATABASE_URL` and `JWT_SECRET` are set for **Production** (not only Pre-Production).
+- The backend uses **bcryptjs** (not bcrypt) so it runs on Vercel without native module issues.

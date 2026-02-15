@@ -19,24 +19,50 @@ function captureVercelBody(
   next();
 }
 
+function sendJson(res: import('http').ServerResponse, status: number, body: object): void {
+  const payload = JSON.stringify(body);
+  res.writeHead(status, {
+    'Content-Type': 'application/json',
+    'Content-Length': Buffer.byteLength(payload, 'utf8'),
+  });
+  res.end(payload);
+}
+
 /**
  * Serverless entry for Vercel. NestJS app is created once per cold start and cached.
  * Accepts Node IncomingMessage / ServerResponse (Vercel's req/res).
+ * Errors are caught and returned as 500/503 so the function does not crash.
  */
 export default async function handler(
   req: import('http').IncomingMessage,
   res: import('http').ServerResponse,
 ): Promise<void> {
   if (!cachedServer) {
-    const expressApp = express();
-    expressApp.use(captureVercelBody);
-    const app = await createApp(expressApp);
-    cachedServer = app.getHttpAdapter().getInstance();
+    try {
+      const expressApp = express();
+      expressApp.use(captureVercelBody);
+      const app = await createApp(expressApp);
+      cachedServer = app.getHttpAdapter().getInstance();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      console.error('[Vercel] App init failed:', message, err instanceof Error ? err.stack : '');
+      sendJson(res, 503, {
+        error: 'FUNCTION_INIT_FAILED',
+        message: 'Backend failed to start. Check Vercel Function logs and env (DATABASE_URL, JWT_SECRET).',
+      });
+      return;
+    }
   }
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve) => {
     cachedServer!(req as any, res as any, (err: unknown) => {
-      if (err) reject(err);
-      else resolve();
+      if (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        console.error('[Vercel] Request error:', message, err instanceof Error ? err.stack : '');
+        if (!res.writableEnded) {
+          sendJson(res, 500, { error: 'INTERNAL_SERVER_ERROR', message: 'Request failed. Check logs.' });
+        }
+      }
+      resolve();
     });
   });
 }
