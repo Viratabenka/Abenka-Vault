@@ -1,16 +1,11 @@
 import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { PointsService } from '../points/points.service';
 import { Role } from '@prisma/client';
-import { ContributionType } from '@prisma/client';
 import { CreateContributionDto, UpdateContributionDto } from './dto/contribution.dto';
 
 @Injectable()
 export class ContributionsService {
-  constructor(
-    private readonly prisma: PrismaService,
-    private readonly points: PointsService,
-  ) {}
+  constructor(private readonly prisma: PrismaService) {}
 
   async create(
     projectId: string,
@@ -19,13 +14,12 @@ export class ContributionsService {
     dto: CreateContributionDto,
   ) {
     await this.ensureProjectAccess(projectId, userId, role);
-    const points = await this.points.computePointsForEntry({
-      type: dto.type,
-      hours: dto.hours,
-      amount: dto.amount,
-      otherPoints: dto.otherPoints,
-      projectId,
-    });
+    const points =
+      dto.type === 'TIME'
+        ? dto.hours ?? 0
+        : dto.type === 'CASH'
+          ? dto.amount ?? 0
+          : dto.otherPoints ?? 0;
     return this.prisma.contribution.create({
       data: {
         userId,
@@ -70,17 +64,15 @@ export class ContributionsService {
     role: Role,
     dto: UpdateContributionDto,
   ) {
-    const c = await this.getOneAndCheckAccess(id, userId, role);
-    const projectId = c.projectId;
-    const points = dto.type !== undefined || dto.hours !== undefined || dto.amount !== undefined || dto.otherPoints !== undefined
-      ? await this.points.computePointsForEntry({
-          type: (dto.type ?? c.type) as ContributionType,
-          hours: dto.hours ?? (c.hours ? Number(c.hours) : undefined),
-          amount: dto.amount ?? (c.amount ? Number(c.amount) : undefined),
-          otherPoints: dto.otherPoints ?? (c.otherPoints ? Number(c.otherPoints) : undefined),
-          projectId,
-        })
-      : undefined;
+    await this.getOneAndCheckAccess(id, userId, role);
+    const points =
+      dto.type === 'TIME'
+        ? dto.hours
+        : dto.type === 'CASH'
+          ? dto.amount
+          : dto.type === 'OTHER'
+            ? dto.otherPoints
+            : undefined;
     return this.prisma.contribution.update({
       where: { id },
       data: {
@@ -88,7 +80,7 @@ export class ContributionsService {
         hours: dto.hours,
         amount: dto.amount,
         otherPoints: dto.otherPoints,
-        points,
+        ...(points !== undefined && { points }),
         date: dto.date ? new Date(dto.date) : undefined,
         notes: dto.notes,
         attachmentUrl: dto.attachmentUrl,

@@ -7,11 +7,11 @@ import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { ProjectsModule } from './projects/projects.module';
 import { ContributionsModule } from './contributions/contributions.module';
-import { PointsModule } from './points/points.module';
 import { EquityModule } from './equity/equity.module';
 import { PayoutsModule } from './payouts/payouts.module';
 import { CompanyModule } from './company/company.module';
 import { RevenueModule } from './revenue/revenue.module';
+import { SalesModule } from './sales/sales.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { ExportsModule } from './exports/exports.module';
 import { AuditModule } from './audit/audit.module';
@@ -27,11 +27,11 @@ import { HealthModule } from './health/health.module';
     UsersModule,
     ProjectsModule,
     ContributionsModule,
-    PointsModule,
     EquityModule,
     PayoutsModule,
     CompanyModule,
     RevenueModule,
+    SalesModule,
     DashboardModule,
     ExportsModule,
     AuditModule,

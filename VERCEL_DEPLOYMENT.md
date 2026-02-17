@@ -25,7 +25,7 @@ Vercel does **not** read a `.env` file from the repo. Add the same variables you
 
 | Variable         | Description |
 |------------------|-------------|
-| `DATABASE_URL`   | Supabase PostgreSQL connection string (same as in `backend/.env`) |
+| `DATABASE_URL`   | **Supabase pooler URL** (see [DB connection](#db-connection-failed) below). For Vercel use **port 6543** (transaction pooler). |
 | `JWT_SECRET`     | Same secret as local (e.g. long random string) |
 | `FRONTEND_URL`   | Your Vercel app URL, e.g. `https://abenka-vault.vercel.app` |
 
@@ -77,6 +77,35 @@ The backend failed to start. Almost always this is **missing env for Production*
 3. **Redeploy**: Deployments → … → Redeploy (or push a commit). Env changes need a new deploy.
 
 Check **Vercel → Logs** or the deployment **Functions** tab for the exact error (e.g. "DATABASE_URL is not defined" or Prisma connection error).
+
+### "DB connection failed. Use Supabase pooler URL…"
+
+This means the app could not connect to Postgres (e.g. connection limit, timeout, or wrong URL). Fix it as follows:
+
+1. **Use the pooler, not the direct URL**
+   - In [Supabase](https://supabase.com/dashboard): **Project → Settings → Database**.
+   - Under **Connection string**, choose **URI** and then **Transaction** (or **Session**).
+   - Use the host that contains **`pooler.supabase.com`** (not `db.xxx.supabase.co`).
+
+2. **For Vercel (serverless), use port 6543 and `?pgbouncer=true`**
+   - Serverless creates many short-lived connections. Supabase’s **transaction pooler** (port **6543**) is recommended.
+   - **Prisma requires `?pgbouncer=true`** on the URL when using the transaction pooler, otherwise you may see: `prepared statement "s8" already exists`.
+   - Example:  
+     `postgresql://postgres.PROJECT_REF:PASSWORD@aws-0-REGION.pooler.supabase.com:6543/postgres?pgbouncer=true`
+   - If your current URL uses `...pooler.supabase.com:5432/...`, change **5432** to **6543** and append **`?pgbouncer=true`** in Vercel’s `DATABASE_URL`.
+
+3. **Set and redeploy**
+   - In Vercel: **Project → Settings → Environment Variables**.
+   - Set `DATABASE_URL` to the pooler URL (port 6543 for Production). Apply to **Production** (and Preview if needed).
+   - **Redeploy** (Deployments → … → Redeploy). Env changes apply only on the next deploy.
+
+### "prepared statement \"s8\" already exists" (Prisma)
+
+This happens when using the **transaction pooler** (port 6543) without telling Prisma to disable prepared statements. Fix:
+
+- Append **`?pgbouncer=true`** to `DATABASE_URL` in Vercel (and in `backend/.env` for local use with 6543).  
+  Example: `...6543/postgres?pgbouncer=true`
+- Redeploy. If the error persists, trigger a fresh deploy (e.g. “Redeploy” with “Clear build cache”) so all function instances pick up the new URL.
 
 ## 8. Build failed with exit code 1
 

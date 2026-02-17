@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 
 export default function Login() {
@@ -25,11 +25,20 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-vault-dark px-4">
-      <div className="w-full max-w-md">
+    <div className="min-h-screen flex items-center justify-center px-4 relative">
+      <div
+        className="absolute inset-0 bg-cover bg-center bg-no-repeat bg-fixed -z-10"
+        style={{ backgroundImage: "url('/abenka-background.png')" }}
+        aria-hidden
+      />
+      <div className="absolute inset-0 bg-vault-dark/70 -z-[5]" aria-hidden />
+      <div className="w-full max-w-md relative z-0">
         <h1 className="font-display text-3xl font-bold text-white text-center mb-2">
           Abenka Vault
         </h1>
+        <div className="flex justify-center mb-2">
+          <img src="/logo.png" alt="" className="h-24 w-auto object-contain" aria-hidden />
+        </div>
         <p className="text-slate-400 text-center mb-8">Secure equity, clear contributions.</p>
         <form
           onSubmit={handleSubmit}
@@ -74,12 +83,6 @@ export default function Login() {
           >
             {loading ? 'Signing in…' : 'Sign in'}
           </button>
-          <p className="mt-4 text-center text-slate-400 text-sm">
-            No account?{' '}
-            <Link to="/signup" className="text-brand-400 hover:underline">
-              Sign up
-            </Link>
-          </p>
         </form>
       </div>
     </div>

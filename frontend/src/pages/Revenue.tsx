@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { revenueApi, projectsApi } from '../api/client';
-import type { RevenueEntry, RevenueEntryType } from '../api/client';
+import { revenueApi, projectsApi, payoutsApi, usersApi } from '../api/client';
+import type { RevenueEntry, RevenueEntryType, Payout } from '../api/client';
 
 type ProjectWithPipeline = {
   id: string;
@@ -25,6 +25,17 @@ export default function Revenue() {
   const [entryDate, setEntryDate] = useState(new Date().toISOString().slice(0, 10));
   const [notes, setNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
+
+  const [activeTab, setActiveTab] = useState<'revenue' | 'payouts'>('revenue');
+  const [users, setUsers] = useState<Array<{ id: string; name: string; email: string; role: string }>>([]);
+  const [pendingPayouts, setPendingPayouts] = useState<Payout[]>([]);
+  const [executedPayouts, setExecutedPayouts] = useState<Payout[]>([]);
+  const [payoutUserId, setPayoutUserId] = useState('');
+  const [payoutAmount, setPayoutAmount] = useState('');
+  const [payoutType, setPayoutType] = useState<'HOURLY' | 'PROFIT'>('HOURLY');
+  const [payoutNotes, setPayoutNotes] = useState('');
+  const [payoutSubmitting, setPayoutSubmitting] = useState(false);
+  const [payoutExecuteId, setPayoutExecuteId] = useState<string | null>(null);
 
   const isAdmin = user?.role === 'ADMIN';
 
@@ -55,6 +66,11 @@ export default function Revenue() {
     }
   };
 
+  const refreshPayouts = () => {
+    payoutsApi.list('PENDING').then(setPendingPayouts).catch(() => setPendingPayouts([]));
+    payoutsApi.list('EXECUTED').then(setExecutedPayouts).catch(() => setExecutedPayouts([]));
+  };
+
   useEffect(() => {
     if (!isAdmin) {
       setLoading(false);
@@ -82,8 +98,10 @@ export default function Revenue() {
           ),
         );
       })
-      .catch(() => {})
-      .finally(() => setLoading(false));
+      .catch(() => {});
+    usersApi.list().then(setUsers).catch(() => {});
+    refreshPayouts();
+    setLoading(false);
   }, [isAdmin]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -110,6 +128,7 @@ export default function Revenue() {
   };
 
   const handleDelete = async (id: string) => {
+    if (!window.confirm('Do you want to delete this entry? This cannot be undone.')) return;
     try {
       await revenueApi.delete(id);
       refresh();
@@ -134,9 +153,45 @@ export default function Revenue() {
     }
   };
 
+  const handleAddPayout = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!payoutUserId || !payoutAmount) return;
+    const amt = parseFloat(payoutAmount);
+    if (Number.isNaN(amt) || amt <= 0) return;
+    setError('');
+    setPayoutSubmitting(true);
+    try {
+      await payoutsApi.create({
+        userId: payoutUserId,
+        amount: amt,
+        type: payoutType,
+        notes: payoutNotes || undefined,
+      });
+      setPayoutAmount('');
+      setPayoutNotes('');
+      refreshPayouts();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to add payout');
+    } finally {
+      setPayoutSubmitting(false);
+    }
+  };
+
+  const handleExecutePayout = async (id: string) => {
+    setError('');
+    setPayoutExecuteId(id);
+    try {
+      await payoutsApi.execute(id);
+      refreshPayouts();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to execute payout');
+    } finally {
+      setPayoutExecuteId(null);
+    }
+  };
+
   if (!isAdmin) return <Navigate to="/dashboard" replace />;
   if (loading) return <div className="text-slate-400">Loading revenue…</div>;
-  if (error) return <div className="text-red-400">{error}</div>;
 
   const phaseTotal = pipelineProjects.reduce(
     (s, p) => s + (p.monthlyRevenuePipeline != null ? Number(p.monthlyRevenuePipeline) : 0),
@@ -153,9 +208,168 @@ export default function Revenue() {
 
   return (
     <div className="max-w-5xl mx-auto space-y-8">
-      <h1 className="font-display text-2xl font-semibold text-white">Revenue</h1>
-      <p className="text-slate-400 text-sm">Monthly revenue (pipeline) by project and one-time revenue & expense entries.</p>
+      <div className="flex items-center justify-between gap-4 flex-wrap">
+        <div>
+          <h1 className="font-display text-2xl font-semibold text-white">Revenue</h1>
+          <p className="text-slate-400 text-sm">Monthly revenue (pipeline), revenue & expense entries, and founder payouts (withdrawals).</p>
+        </div>
+        <div className="flex rounded-lg border border-vault-border bg-vault-card p-1">
+          <button
+            type="button"
+            onClick={() => { setActiveTab('revenue'); setError(''); }}
+            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${activeTab === 'revenue' ? 'bg-brand-600 text-white' : 'text-slate-400 hover:text-white'}`}
+          >
+            Revenue
+          </button>
+          <button
+            type="button"
+            onClick={() => { setActiveTab('payouts'); setError(''); }}
+            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${activeTab === 'payouts' ? 'bg-brand-600 text-white' : 'text-slate-400 hover:text-white'}`}
+          >
+            Payouts
+          </button>
+        </div>
+      </div>
 
+      {error && (
+        <div className="rounded-xl border border-red-500/40 bg-red-500/10 px-4 py-3 text-red-400 text-sm">
+          {error}
+        </div>
+      )}
+
+      {activeTab === 'payouts' ? (
+        <>
+          <section className="bg-vault-card border border-vault-border rounded-xl p-5">
+            <h2 className="text-lg font-semibold text-white mb-3">Add withdrawal (payout) for founder</h2>
+            <p className="text-slate-400 text-sm mb-4">Create a payout for a founder. Execute it once paid so the amount shows under Withdrawn income on their dashboard and Company portal.</p>
+            <form onSubmit={handleAddPayout} className="flex flex-wrap items-end gap-4">
+              <div>
+                <label className="block text-slate-400 text-sm mb-1">Founder</label>
+                <select
+                  value={payoutUserId}
+                  onChange={(e) => setPayoutUserId(e.target.value)}
+                  required
+                  className="px-3 py-2 rounded-lg bg-vault-dark border border-vault-border text-white min-w-[200px]"
+                >
+                  <option value="">Select founder</option>
+                  {users.map((u) => (
+                    <option key={u.id} value={u.id}>{u.name} ({u.email})</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-slate-400 text-sm mb-1">Amount (₹)</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0.01"
+                  value={payoutAmount}
+                  onChange={(e) => setPayoutAmount(e.target.value)}
+                  required
+                  className="px-3 py-2 rounded-lg bg-vault-dark border border-vault-border text-white w-32"
+                  placeholder="0"
+                />
+              </div>
+              <div>
+                <label className="block text-slate-400 text-sm mb-1">Type</label>
+                <select
+                  value={payoutType}
+                  onChange={(e) => setPayoutType(e.target.value as 'HOURLY' | 'PROFIT')}
+                  className="px-3 py-2 rounded-lg bg-vault-dark border border-vault-border text-white"
+                >
+                  <option value="HOURLY">Hourly</option>
+                  <option value="PROFIT">Profit share</option>
+                </select>
+              </div>
+              <div className="flex-1 min-w-[180px]">
+                <label className="block text-slate-400 text-sm mb-1">Notes</label>
+                <input
+                  type="text"
+                  value={payoutNotes}
+                  onChange={(e) => setPayoutNotes(e.target.value)}
+                  placeholder="Optional"
+                  className="px-3 py-2 rounded-lg bg-vault-dark border border-vault-border text-white w-full"
+                />
+              </div>
+              <button type="submit" disabled={payoutSubmitting || !payoutUserId || !payoutAmount} className="px-4 py-2 rounded-lg bg-brand-600 hover:bg-brand-500 text-white text-sm disabled:opacity-50">
+                {payoutSubmitting ? 'Adding…' : 'Add payout'}
+              </button>
+            </form>
+          </section>
+          <section className="bg-vault-card border border-vault-border rounded-xl overflow-hidden">
+            <h2 className="text-lg font-semibold text-white p-5 pb-0">Pending payouts</h2>
+            <p className="text-slate-400 text-sm px-5 pt-1">Execute when the amount has been paid to the founder so it reflects as Withdrawn income.</p>
+            {pendingPayouts.length === 0 ? (
+              <p className="p-5 text-slate-500 text-sm">No pending payouts.</p>
+            ) : (
+              <div className="overflow-x-auto p-5 pt-4">
+                <table className="w-full text-left min-w-[500px]">
+                  <thead>
+                    <tr className="border-b border-vault-border">
+                      <th className="py-2 pr-3 text-slate-400 font-medium">Founder</th>
+                      <th className="py-2 pr-3 text-slate-400 font-medium">Amount (₹)</th>
+                      <th className="py-2 pr-3 text-slate-400 font-medium">Type</th>
+                      <th className="py-2 pr-3 text-slate-400 font-medium">Date</th>
+                      <th className="py-2 text-slate-400 font-medium"></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {pendingPayouts.map((p) => (
+                      <tr key={p.id} className="border-b border-vault-border/50">
+                        <td className="py-3 text-white font-medium">{p.user?.name ?? p.userId}</td>
+                        <td className="py-3 text-brand-400 font-medium">₹{Number(p.amount).toLocaleString('en-IN')}</td>
+                        <td className="py-3 text-slate-300 text-sm">{p.type}</td>
+                        <td className="py-3 text-slate-300 text-sm">{new Date(p.date).toLocaleDateString()}</td>
+                        <td className="py-3">
+                          <button
+                            type="button"
+                            onClick={() => handleExecutePayout(p.id)}
+                            disabled={payoutExecuteId === p.id}
+                            className="px-3 py-1.5 rounded-lg bg-green-600 hover:bg-green-500 text-white text-sm disabled:opacity-50"
+                          >
+                            {payoutExecuteId === p.id ? 'Executing…' : 'Execute'}
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </section>
+          <section className="bg-vault-card border border-vault-border rounded-xl overflow-hidden">
+            <h2 className="text-lg font-semibold text-white p-5 pb-0">Paid payouts</h2>
+            <p className="text-slate-400 text-sm px-5 pt-1">Executed payouts; amounts are included in Withdrawn income on founder and Company dashboards.</p>
+            {executedPayouts.length === 0 ? (
+              <p className="p-5 text-slate-500 text-sm">No paid payouts yet.</p>
+            ) : (
+              <div className="overflow-x-auto p-5 pt-4">
+                <table className="w-full text-left min-w-[500px]">
+                  <thead>
+                    <tr className="border-b border-vault-border">
+                      <th className="py-2 pr-3 text-slate-400 font-medium">Founder</th>
+                      <th className="py-2 pr-3 text-slate-400 font-medium">Amount (₹)</th>
+                      <th className="py-2 pr-3 text-slate-400 font-medium">Type</th>
+                      <th className="py-2 pr-3 text-slate-400 font-medium">Date</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {executedPayouts.map((p) => (
+                      <tr key={p.id} className="border-b border-vault-border/50">
+                        <td className="py-3 text-white font-medium">{p.user?.name ?? p.userId}</td>
+                        <td className="py-3 text-green-400 font-medium">₹{Number(p.amount).toLocaleString('en-IN')}</td>
+                        <td className="py-3 text-slate-300 text-sm">{p.type}</td>
+                        <td className="py-3 text-slate-300 text-sm">{new Date(p.date).toLocaleDateString()}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </section>
+        </>
+      ) : (
+        <>
       <section className="bg-green-500/10 border border-green-500/40 rounded-xl p-5">
         <h2 className="text-lg font-semibold text-white mb-2">Monthly revenue (phase target)</h2>
         <p className="text-slate-400 text-sm mb-2">One value per project. Shown on Company dashboard toward the 15 Lakh target.</p>
@@ -320,6 +534,8 @@ export default function Revenue() {
           </div>
         )}
       </section>
+        </>
+      )}
     </div>
   );
 }

@@ -11,12 +11,21 @@ export default function Layout() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col">
-      <header className="bg-vault-card border-b border-vault-border px-6 py-4 flex items-center justify-between">
-        <Link to="/" className="font-display font-semibold text-xl text-white">
+    <div className="min-h-screen flex flex-col relative">
+      <div
+        className="absolute inset-0 bg-cover bg-center bg-no-repeat bg-fixed -z-10"
+        style={{ backgroundImage: "url('/abenka-background.png')" }}
+        aria-hidden
+      />
+      <div className="absolute inset-0 bg-vault-dark/70 -z-[5]" aria-hidden />
+      <header className="bg-vault-card/90 border-b border-vault-border px-6 py-4 flex items-center justify-between backdrop-blur-sm">
+        <Link to="/" className="font-display font-semibold text-xl text-white hover:opacity-90">
           Abenka Vault
         </Link>
-        <p className="text-slate-400 text-sm">Secure equity, clear contributions.</p>
+        <div className="flex items-center gap-3">
+          <img src="/logo.png" alt="" className="h-14 w-auto object-contain" aria-hidden />
+          <p className="text-slate-400 text-sm">Secure equity, clear contributions.</p>
+        </div>
         <nav className="flex items-center gap-6">
           <Link to="/dashboard" className="text-slate-300 hover:text-white">
             My dashboard
@@ -42,7 +51,7 @@ export default function Layout() {
           </button>
         </nav>
       </header>
-      <main className="flex-1 p-6">
+      <main className="flex-1 p-6 relative z-0">
         <Outlet />
       </main>
     </div>

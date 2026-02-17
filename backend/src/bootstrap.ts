@@ -2,16 +2,21 @@ import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { ExpressAdapter } from '@nestjs/platform-express';
 import type { INestApplication } from '@nestjs/common';
-import express from 'express';
+import type { Express, Request, Response, NextFunction } from 'express';
 import { AppModule } from './app.module';
 import { CentralizedExceptionFilter } from './common/filters/exception.filter';
+
+// Use require so compiled CJS gets a callable express (avoid "express.default is not a function")
+const expressLib = require('express');
+const createExpressApp: () => Express =
+  typeof expressLib === 'function' ? expressLib : expressLib.default;
 
 /**
  * Create and configure the NestJS application (no listen).
  * Used by main.ts for local server and by vercel.ts for serverless.
  */
-export async function createApp(expressApp?: express.Express): Promise<INestApplication> {
-  const server = expressApp ?? express();
+export async function createApp(expressApp?: Express): Promise<INestApplication> {
+  const server = expressApp ?? createExpressApp();
   const app = await NestFactory.create(AppModule, new ExpressAdapter(server), {
     bodyParser: true,
   });
@@ -33,8 +38,8 @@ export async function createApp(expressApp?: express.Express): Promise<INestAppl
   // On Vercel, restore request body from capture so Nest gets email/password for login
   if (process.env.VERCEL) {
     const expressApp = app.getHttpAdapter().getInstance();
-    expressApp.use((req: express.Request, _res: express.Response, next: express.NextFunction) => {
-      const r = req as express.Request & { _vercelBody?: unknown };
+    expressApp.use((req: Request, _res: Response, next: NextFunction) => {
+      const r = req as Request & { _vercelBody?: unknown };
       if (r._vercelBody !== undefined) (req as any).body = r._vercelBody;
       next();
     });

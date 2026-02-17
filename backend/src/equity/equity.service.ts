@@ -18,24 +18,25 @@ export class EquityService {
     const contributions = await this.prisma.contribution.findMany({
       where: input.projectId ? { projectId: input.projectId } : undefined,
     });
-    const totalPoints = contributions.reduce(
-      (sum, c) => sum + Number(c.points ?? 0),
+    const timeContributions = contributions.filter((c) => c.type === 'TIME');
+    const totalHours = timeContributions.reduce(
+      (sum, c) => sum + Number(c.hours ?? 0),
       0,
     );
-    if (totalPoints === 0) return { allocations: [] };
+    if (totalHours === 0) return { allocations: [] };
     const byUser = new Map<string, number>();
-    for (const c of contributions) {
+    for (const c of timeContributions) {
       const prev = byUser.get(c.userId) ?? 0;
-      byUser.set(c.userId, prev + Number(c.points ?? 0));
+      byUser.set(c.userId, prev + Number(c.hours ?? 0));
     }
     const allocations = [];
-    for (const [userId, points] of byUser) {
-      const sharesAllocated = (points / totalPoints) * 100;
+    for (const [userId, userHours] of byUser) {
+      const sharesAllocated = (userHours / totalHours) * 100;
       const alloc = await this.prisma.equityAllocation.create({
         data: {
           userId,
-          points: new Decimal(points),
-          totalPoints: new Decimal(totalPoints),
+          points: new Decimal(userHours),
+          totalPoints: new Decimal(totalHours),
           sharesAllocated: new Decimal(Math.round(sharesAllocated * 10000) / 10000),
           vestingStart,
           cliffMonths: input.cliffMonths,
@@ -58,8 +59,8 @@ export class EquityService {
       userId: a.userId,
       userName: a.user.name,
       userEmail: a.user.email,
-      points: Number(a.points),
-      totalPoints: Number(a.totalPoints),
+      hours: Number(a.points),
+      totalHours: Number(a.totalPoints),
       equityPercent: Number(a.sharesAllocated),
       vestingStart: a.vestingStart,
       cliffMonths: a.cliffMonths,

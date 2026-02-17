@@ -56,8 +56,8 @@ export const dashboardApi = {
     api<{
       user: { id: string; name: string; email: string; role: string; hourlyRate?: number };
       contributions: Array<Record<string, unknown>>;
-      totalPoints: number;
       totalHours: number;
+      totalPoints: number;
       summaryByProject?: Array<{
         projectId: string;
         projectName: string;
@@ -67,6 +67,8 @@ export const dashboardApi = {
       }>;
       equityAllocations: Array<Record<string, unknown>>;
       payouts: Array<Record<string, unknown>>;
+      /** Live allocated equity (units), same as Company page: (my hours / total company hours) * pool */
+      allocatedEquityUnits?: number;
     }>(`/users/${userId}/dashboard`),
 };
 
@@ -109,6 +111,28 @@ export const projectsApi = {
     api(`/members-of-project/${projectId}/${memberUserId}`, { method: 'DELETE' }),
 };
 
+export type SalesAllocation = { userId: string; contributionPercent: number; user?: { id: string; name: string; email: string } };
+export type SalesEntry = {
+  id: string;
+  projectId: string;
+  periodMonth: string | null;
+  entryDate: string;
+  salesAmount: number;
+  notes: string | null;
+  allocations: SalesAllocation[];
+};
+
+export const salesApi = {
+  listByProject: (projectId: string) =>
+    api<SalesEntry[]>(`/projects/${projectId}/sales`),
+  create: (projectId: string, dto: { entryDate: string; periodMonth?: string; salesAmount: number; notes?: string; allocations: { userId: string; contributionPercent: number }[] }) =>
+    api<SalesEntry>(`/projects/${projectId}/sales`, { method: 'POST', body: JSON.stringify(dto) }),
+  update: (projectId: string, salesEntryId: string, dto: { entryDate?: string; periodMonth?: string; salesAmount?: number; notes?: string; allocations?: { userId: string; contributionPercent: number }[] }) =>
+    api<SalesEntry>(`/projects/${projectId}/sales/${salesEntryId}`, { method: 'PUT', body: JSON.stringify(dto) }),
+  delete: (projectId: string, salesEntryId: string) =>
+    api(`/projects/${projectId}/sales/${salesEntryId}`, { method: 'DELETE' }),
+};
+
 export const contributionsApi = {
   list: (projectId: string) =>
     api<Array<Record<string, unknown>>>(`/projects/${projectId}/contributions`),
@@ -140,6 +164,10 @@ export type FounderSummaryRow = {
   role: string;
   totalHours: number;
   totalPoints: number;
+  /** Hours from TIME contributions (entered in projects). */
+  hoursFromProjects: number;
+  /** Hours derived from sales allocation %. */
+  hoursFromSales: number;
   contributionCount: number;
   allocatedEquity: number;
   equityPercent: number;
@@ -169,12 +197,19 @@ export type RevenueSummary = {
   }>;
 };
 
+export type ContributionHoursByProject = {
+  projectId: string | null;
+  projectName: string;
+  byFounder: Array<{ userId: string; name: string; hours: number }>;
+};
+
 export type CompanyDashboardAdmin = {
   view: 'admin';
   users: number;
   projects: number;
   capTable: Array<Record<string, unknown>>;
   founderSummary: FounderSummaryRow[];
+  contributionHoursByProject?: ContributionHoursByProject[];
   topContributors: Array<Record<string, unknown>>;
   pendingPayouts: Array<Record<string, unknown>>;
   revenueSummary?: RevenueSummary;
@@ -211,6 +246,8 @@ export type CompanyDashboardFounder = {
 export const companyApi = {
   dashboard: () =>
     api<CompanyDashboardAdmin | CompanyDashboardFounder>('/company/dashboard'),
+  contributionHoursByProject: () =>
+    api<ContributionHoursByProject[]>('/company/contribution-hours-by-project'),
 };
 
 export type RevenueEntryType = 'MONTHLY_REVENUE' | 'ONE_TIME_REVENUE' | 'EXPENSE';
@@ -237,6 +274,28 @@ export const revenueApi = {
   update: (id: string, dto: Partial<{ type: RevenueEntryType; amount: number; periodMonth?: string; entryDate: string; notes?: string }>) =>
     api<RevenueEntry>(`/revenue/${id}`, { method: 'PUT', body: JSON.stringify(dto) }),
   delete: (id: string) => api(`/revenue/${id}`, { method: 'DELETE' }),
+};
+
+export type PayoutStatus = 'PENDING' | 'EXECUTED' | 'DEFERRED_TO_EQUITY' | 'CANCELLED';
+export type PayoutType = 'HOURLY' | 'PROFIT';
+export type Payout = {
+  id: string;
+  userId: string;
+  amount: number;
+  type: PayoutType;
+  status: PayoutStatus;
+  date: string;
+  notes: string | null;
+  user?: { id: string; name: string; email: string };
+};
+
+export const payoutsApi = {
+  list: (status?: PayoutStatus) =>
+    api<Payout[]>(`/payouts${status ? `?status=${status}` : ''}`),
+  create: (dto: { userId: string; amount: number; type?: PayoutType; notes?: string }) =>
+    api<Payout>('/payouts/create', { method: 'POST', body: JSON.stringify(dto) }),
+  execute: (id: string) =>
+    api<Payout>(`/payouts/${id}/execute`, { method: 'POST' }),
 };
 
 async function downloadExport(path: string, filename: string) {

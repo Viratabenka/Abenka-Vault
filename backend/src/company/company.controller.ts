@@ -15,4 +15,9 @@ export class CompanyController {
   ) {
     return this.company.getDashboard(userId, role as import('@prisma/client').Role);
   }
+
+  @Get('contribution-hours-by-project')
+  getContributionHoursByProject() {
+    return this.company.getContributionHoursByProject();
+  }
 }

@@ -6,7 +6,7 @@
     "build:backend": "cd backend && npm install --include=dev && npx prisma generate && npm run build",
     "build:frontend": "cd frontend && npm install --include=dev && npm run build",
     "install:all": "cd backend && npm install --include=dev && cd ../frontend && npm install --include=dev",
-    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "dev": "node scripts/dev-runner.cjs",
     "dev:backend": "cd backend && npm run start:dev",
     "dev:frontend": "cd frontend && npm run dev"
   },
