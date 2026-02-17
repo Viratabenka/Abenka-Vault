@@ -50,7 +50,7 @@ export default async function handler(
         /DATABASE_URL|datasource|env/i.test(message) && !/connection|connect|ECONNREFUSED/i.test(message)
           ? 'Set DATABASE_URL for Production and redeploy.'
           : /connection|connect|ECONNREFUSED|timeout|pool/i.test(message)
-            ? 'DB connection failed. Use Supabase Session pooler URL; redeploy after changing env.'
+            ? 'DB connection failed. Use Supabase pooler URL (port 6543 for serverless); set DATABASE_URL in Vercel → Production and redeploy.'
             : /JWT|secret/i.test(message)
               ? 'Set JWT_SECRET for Production and redeploy.'
               : 'Redeploy after setting env vars, then check Vercel → Logs for the real error.';

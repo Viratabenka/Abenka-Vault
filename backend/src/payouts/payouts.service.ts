@@ -104,4 +104,28 @@ export class PayoutsService {
       orderBy: { date: 'desc' },
     });
   }
+
+  /** Admin: create a single payout (e.g. withdrawal for a founder). Defaults to PENDING; use execute to count as withdrawn. */
+  async create(dto: { userId: string; amount: number; type?: PayoutType; notes?: string }) {
+    return this.prisma.payout.create({
+      data: {
+        userId: dto.userId,
+        amount: new Decimal(dto.amount),
+        type: dto.type ?? PayoutType.HOURLY,
+        status: PayoutStatus.PENDING,
+        date: new Date(),
+        notes: dto.notes ?? undefined,
+      },
+      include: { user: { select: { id: true, name: true, email: true } } },
+    });
+  }
+
+  /** Admin: list payouts, optionally filtered by status. */
+  async findAll(status?: PayoutStatus) {
+    return this.prisma.payout.findMany({
+      where: status ? { status } : undefined,
+      orderBy: { date: 'desc' },
+      include: { user: { select: { id: true, name: true, email: true } } },
+    });
+  }
 }

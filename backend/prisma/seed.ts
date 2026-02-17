@@ -32,25 +32,6 @@ async function main() {
     });
     console.log('Seeded user:', u.email, u.role);
   }
-  const existingWeights = await prisma.weightsConfig.findFirst({
-    where: { scope: 'company', projectId: null },
-  });
-  if (existingWeights) {
-    await prisma.weightsConfig.update({
-      where: { id: existingWeights.id },
-      data: { timeWeight: 1, cashWeight: 0.001, otherWeight: 1 },
-    });
-  } else {
-    await prisma.weightsConfig.create({
-      data: {
-        scope: 'company',
-        projectId: null,
-        timeWeight: 1,
-        cashWeight: 0.001,
-        otherWeight: 1,
-      },
-    });
-  }
   const phases = [
     { name: 'Sprout', equityPoolPercent: 25, equityPoolQty: 1500, monthlySalesTargetLabel: 'Upto 15 Lakh/Month', salesWeightageMultiplier: 4, notionalSalaryNotes: '10% on Sales 5% on Renewal, 1500 Rs/Hr', sortOrder: 1 },
     { name: 'Survival', equityPoolPercent: 25, equityPoolQty: 1500, monthlySalesTargetLabel: 'Upto 50 Lakh/Month', salesWeightageMultiplier: 3, notionalSalaryNotes: '10% on Sales 5% on Renewal, 1500 Rs/Hr', sortOrder: 2 },
@@ -79,6 +60,19 @@ async function main() {
     where: { name: 'Sprout' },
     data: { monthlySalesTargetLabel: 'Upto 15 Lakh/Month' },
   });
+  const existingWeights = await prisma.weightsConfig.findFirst();
+  if (!existingWeights) {
+    await prisma.weightsConfig.create({
+      data: {
+        timeWeight: 1,
+        cashWeight: 1,
+        otherWeight: 1,
+        scope: 'company',
+        projectId: null,
+      },
+    });
+    console.log('Seeded default WeightsConfig (company).');
+  }
   console.log('Seeded users and company phases.');
 }
 

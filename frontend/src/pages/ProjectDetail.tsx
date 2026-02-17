@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { projectsApi, contributionsApi } from '../api/client';
+import { projectsApi, contributionsApi, salesApi, type SalesEntry } from '../api/client';
 
 type Contribution = Record<string, unknown>;
 type ProjectMember = { userId: string; user: { id: string; name: string; email: string; role: string } };
@@ -27,6 +27,14 @@ export default function ProjectDetail() {
   const canAssignMembers = isAdmin;
   const canDeleteProject = user?.role === 'ADMIN';
   const [deleting, setDeleting] = useState(false);
+  const [salesEntries, setSalesEntries] = useState<SalesEntry[]>([]);
+  const [showSalesForm, setShowSalesForm] = useState(false);
+  const [salesEntryDate, setSalesEntryDate] = useState(new Date().toISOString().slice(0, 10));
+  const [salesAmount, setSalesAmount] = useState('');
+  const [salesNotes, setSalesNotes] = useState('');
+  const [salesAllocations, setSalesAllocations] = useState<Record<string, number>>({});
+  const [submittingSales, setSubmittingSales] = useState(false);
+  const [deletingSalesId, setDeletingSalesId] = useState<string | null>(null);
 
   const loadAssignableUsers = () => {
     if (!id) return;
@@ -44,11 +52,17 @@ export default function ProjectDetail() {
 
   const refresh = () => {
     if (!id) return;
-    Promise.all([projectsApi.get(id), contributionsApi.list(id), projectsApi.getMembers(id)])
-      .then(([p, c, m]) => {
+    Promise.all([
+      projectsApi.get(id),
+      contributionsApi.list(id),
+      projectsApi.getMembers(id),
+      salesApi.listByProject(id).catch(() => [] as SalesEntry[]),
+    ])
+      .then(([p, c, m, sales]) => {
         setProject(p);
         setContributions(c);
         setMembers(m);
+        setSalesEntries(Array.isArray(sales) ? sales : []);
         if (user?.id && isAdmin) {
           projectsApi.getAssignableUsers(id).then((list) => setAllUsers(Array.isArray(list) ? list : [])).catch(() => setAllUsers([]));
         }
@@ -62,11 +76,13 @@ export default function ProjectDetail() {
       projectsApi.get(id),
       contributionsApi.list(id),
       projectsApi.getMembers(id),
+      salesApi.listByProject(id).catch(() => [] as SalesEntry[]),
     ])
-      .then(([proj, c, m]) => {
+      .then(([proj, c, m, sales]) => {
         setProject(proj);
         setContributions(c as Contribution[]);
         setMembers((m as ProjectMember[]) ?? []);
+        setSalesEntries(Array.isArray(sales) ? sales : []);
         const canLoadAssignable = proj && user?.id && isAdmin;
         if (canLoadAssignable) {
           return projectsApi.getAssignableUsers(id).then((list) => {
@@ -109,8 +125,63 @@ export default function ProjectDetail() {
     }
   };
 
+  const salesCandidates = project
+    ? [
+        ...(project.owner ? [{ id: project.owner.id, name: project.owner.name }] : []),
+        ...members.map((m) => ({ id: m.user.id, name: m.user.name })),
+      ].filter((u, i, arr) => arr.findIndex((x) => x.id === u.id) === i)
+    : [];
+
+  const handleSalesSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!id || !salesAmount || salesCandidates.length === 0) return;
+    const allocations = salesCandidates.map((u) => ({
+      userId: u.id,
+      contributionPercent: salesAllocations[u.id] ?? 0,
+    }));
+    const sum = allocations.reduce((s, a) => s + a.contributionPercent, 0);
+    if (Math.abs(sum - 100) > 0.01) {
+      setError('Contribution percentages must total 100');
+      return;
+    }
+    setError('');
+    setSubmittingSales(true);
+    try {
+      await salesApi.create(id, {
+        entryDate: salesEntryDate,
+        salesAmount: parseFloat(salesAmount),
+        notes: salesNotes || undefined,
+        allocations,
+      });
+      setSalesAmount('');
+      setSalesNotes('');
+      setSalesAllocations({});
+      setShowSalesForm(false);
+      refresh();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to add sales entry');
+    } finally {
+      setSubmittingSales(false);
+    }
+  };
+
+  const handleDeleteSales = async (salesEntryId: string) => {
+    if (!id) return;
+    if (!window.confirm('Remove this sales entry?')) return;
+    setDeletingSalesId(salesEntryId);
+    try {
+      await salesApi.delete(id, salesEntryId);
+      refresh();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to delete');
+    } finally {
+      setDeletingSalesId(null);
+    }
+  };
+
   const handleRemoveMember = async (memberUserId: string) => {
     if (!id) return;
+    if (!window.confirm('Do you want to remove this member from the project?')) return;
     try {
       await projectsApi.removeMember(id, memberUserId);
       refresh();
@@ -144,7 +215,7 @@ export default function ProjectDetail() {
   if (loading) return <div className="text-slate-400">Loading…</div>;
   if (!project) return null;
 
-  const totalPoints = contributions.reduce((s, c) => s + Number(c.points ?? 0), 0);
+  const totalPoints = contributions.reduce((s, c) => s + Number((c as { points?: number }).points ?? 0), 0);
   const memberIds = new Set(members.map((m) => m.userId));
   const availableUsers = allUsers.filter((u) => !memberIds.has(u.id) && u.id !== project.owner?.id);
 
@@ -236,6 +307,91 @@ export default function ProjectDetail() {
         <p className="text-2xl font-semibold text-white">{totalPoints.toFixed(2)}</p>
       </div>
 
+      <section className="mb-6 p-4 bg-vault-card border border-vault-border rounded-xl">
+        <h2 className="text-lg font-semibold text-white mb-2">Sales</h2>
+        <p className="text-slate-400 text-sm mb-3">Sales entries with founder contribution % (12% of amount in first year, 5% thereafter). Notional and hours feed into Company dashboard.</p>
+        {isAdmin && salesCandidates.length > 0 && (
+          <>
+            {!showSalesForm ? (
+              <button type="button" onClick={() => setShowSalesForm(true)} className="px-4 py-2 rounded-lg bg-brand-600 hover:bg-brand-500 text-white text-sm mb-4">
+                Add sales entry
+              </button>
+            ) : (
+              <form onSubmit={handleSalesSubmit} className="mb-4 p-4 rounded-xl bg-vault-dark border border-vault-border space-y-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-slate-400 text-sm mb-1">Entry date</label>
+                    <input type="date" value={salesEntryDate} onChange={(e) => setSalesEntryDate(e.target.value)} required className="w-full px-3 py-2 rounded-lg bg-vault-dark border border-vault-border text-white" />
+                  </div>
+                  <div>
+                    <label className="block text-slate-400 text-sm mb-1">Sales amount (₹)</label>
+                    <input type="number" min="0" step="0.01" value={salesAmount} onChange={(e) => setSalesAmount(e.target.value)} required className="w-full px-3 py-2 rounded-lg bg-vault-dark border border-vault-border text-white" />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-slate-400 text-sm mb-1">Contribution % per founder (must total 100)</label>
+                  <div className="flex flex-wrap gap-4 mt-2">
+                    {salesCandidates.map((u) => (
+                      <div key={u.id} className="flex items-center gap-2">
+                        <span className="text-slate-300 text-sm w-24 truncate">{u.name}</span>
+                        <input type="number" min="0" max="100" step="0.5" value={salesAllocations[u.id] ?? ''} onChange={(e) => setSalesAllocations((prev) => ({ ...prev, [u.id]: parseFloat(e.target.value) || 0 }))} className="w-20 px-2 py-1 rounded bg-vault-dark border border-vault-border text-white text-sm" placeholder="0" />
+                        <span className="text-slate-500 text-xs">%</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-slate-400 text-sm mb-1">Notes (optional)</label>
+                  <input type="text" value={salesNotes} onChange={(e) => setSalesNotes(e.target.value)} className="w-full px-3 py-2 rounded-lg bg-vault-dark border border-vault-border text-white" />
+                </div>
+                <div className="flex gap-2">
+                  <button type="submit" disabled={submittingSales} className="px-4 py-2 rounded-lg bg-brand-600 hover:bg-brand-500 text-white text-sm disabled:opacity-50">
+                    {submittingSales ? 'Saving…' : 'Save sales entry'}
+                  </button>
+                  <button type="button" onClick={() => { setShowSalesForm(false); setSalesAmount(''); setSalesAllocations({}); }} className="px-4 py-2 rounded-lg border border-vault-border text-slate-300 hover:text-white text-sm">
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            )}
+          </>
+        )}
+        {salesEntries.length === 0 ? (
+          <p className="text-slate-500 text-sm">No sales entries yet.</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm">
+              <thead>
+                <tr className="border-b border-vault-border">
+                  <th className="py-2 pr-3 text-slate-400 font-medium">Date</th>
+                  <th className="py-2 pr-3 text-slate-400 font-medium">Amount (₹)</th>
+                  <th className="py-2 pr-3 text-slate-400 font-medium">Allocations</th>
+                  {isAdmin && <th className="py-2 pr-3 text-slate-400 font-medium"></th>}
+                </tr>
+              </thead>
+              <tbody>
+                {salesEntries.map((s) => (
+                  <tr key={s.id} className="border-b border-vault-border/50">
+                    <td className="py-2 pr-3 text-slate-300">{new Date(s.entryDate).toLocaleDateString()}</td>
+                    <td className="py-2 pr-3 text-white">{Number(s.salesAmount).toLocaleString('en-IN')}</td>
+                    <td className="py-2 pr-3 text-slate-300">
+                      {s.allocations.map((a) => `${(a.user as { name?: string })?.name ?? a.userId}: ${Number(a.contributionPercent)}%`).join(', ')}
+                    </td>
+                    {isAdmin && (
+                      <td className="py-2 pr-3">
+                        <button type="button" onClick={() => handleDeleteSales(s.id)} disabled={deletingSalesId === s.id} className="text-red-400 hover:text-red-300 text-xs disabled:opacity-50">
+                          {deletingSalesId === s.id ? 'Deleting…' : 'Delete'}
+                        </button>
+                      </td>
+                    )}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+
       <section className="mb-6">
         <h2 className="text-lg font-semibold text-white mb-3">Log hours</h2>
         <form onSubmit={handleLogHours} className="bg-vault-card border border-vault-border rounded-xl p-4 flex flex-wrap items-end gap-4">
@@ -270,7 +426,7 @@ export default function ProjectDetail() {
             </tr>
           </thead>
           <tbody>
-            {contributions.map((c: Contribution, i: number) => (
+            {contributions.map((c: Contribution & { points?: number }, i: number) => (
               <tr key={i} className="border-b border-vault-border/50">
                 <td className="p-3 text-slate-300">
                   {typeof c.date === 'string' ? new Date(c.date).toLocaleDateString() : '-'}

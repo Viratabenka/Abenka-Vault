@@ -7,8 +7,9 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 enum Role {
@@ -66,6 +67,7 @@ model User {
   auditLogs          AuditLog[]
   invitedUsers       User[]            @relation("UserInvites")
   invitedByUser      User?             @relation("UserInvites", fields: [invitedBy], references: [id])
+  salesAllocations   SalesAllocation[]
 }
 
 model Project {
@@ -83,6 +85,39 @@ model Project {
   contributions    Contribution[]
   members          ProjectMember[]
   revenueEntries   ProjectRevenueEntry[]
+  salesEntries     SalesEntry[]
+}
+
+model SalesEntry {
+  id          String   @id @default(cuid())
+  projectId   String   @map("project_id")
+  periodMonth String?  @map("period_month") @db.VarChar(7) // YYYY-MM
+  entryDate   DateTime @map("entry_date") @db.Date
+  salesAmount Decimal  @map("sales_amount") @db.Decimal(14, 2)
+  notes       String?
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  project     Project           @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  allocations SalesAllocation[]
+
+  @@index([projectId])
+  @@index([entryDate])
+}
+
+model SalesAllocation {
+  id                 String   @id @default(cuid())
+  salesEntryId       String   @map("sales_entry_id")
+  userId             String   @map("user_id")
+  contributionPercent Decimal @map("contribution_percent") @db.Decimal(5, 2) // e.g. 10 for 10%
+  createdAt          DateTime @default(now()) @map("created_at")
+
+  salesEntry SalesEntry @relation(fields: [salesEntryId], references: [id], onDelete: Cascade)
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([salesEntryId, userId])
+  @@index([salesEntryId])
+  @@index([userId])
 }
 
 model ProjectRevenueEntry {
@@ -132,6 +167,20 @@ model CompanyPhase {
   @@index([sortOrder])
 }
 
+model WeightsConfig {
+  id           String   @id @default(cuid())
+  timeWeight   Decimal  @map("time_weight") @db.Decimal(8, 4)
+  cashWeight   Decimal  @map("cash_weight") @db.Decimal(8, 4)
+  otherWeight  Decimal  @map("other_weight") @db.Decimal(8, 4)
+  scope        String   @default("company")
+  projectId    String?  @map("project_id")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  @@unique([scope, projectId])
+  @@index([projectId])
+}
+
 model Contribution {
   id             String           @id @default(cuid())
   userId         String           @map("user_id")
@@ -140,7 +189,7 @@ model Contribution {
   hours          Decimal?         @db.Decimal(10, 2)
   amount         Decimal?         @db.Decimal(14, 2)
   otherPoints    Decimal?         @map("other_points") @db.Decimal(14, 2)
-  points         Decimal?         @db.Decimal(14, 2)   // computed: hours*time_weight + amount*cash_weight + other
+  points         Decimal?         @db.Decimal(14, 2)
   date           DateTime         @db.Date
   notes          String?
   attachmentUrl  String?           @map("attachment_url")
@@ -155,20 +204,6 @@ model Contribution {
   @@index([userId])
   @@index([projectId])
   @@index([date])
-}
-
-model WeightsConfig {
-  id           String   @id @default(cuid())
-  timeWeight   Decimal  @map("time_weight")   @db.Decimal(8, 4)
-  cashWeight   Decimal  @map("cash_weight")   @db.Decimal(8, 4)
-  otherWeight  Decimal  @map("other_weight")  @db.Decimal(8, 4)
-  scope        String   @default("company")   // "company" | projectId
-  projectId    String?  @map("project_id")
-  createdAt    DateTime @default(now()) @map("created_at")
-  updatedAt    DateTime @updatedAt @map("updated_at")
-
-  @@unique([scope, projectId])
-  @@index([projectId])
 }
 
 model EquityAllocation {
