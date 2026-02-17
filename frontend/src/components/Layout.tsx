@@ -80,7 +80,7 @@ export default function Layout() {
               Revenue
             </NavLink>
           )}
-          <span className="text-slate-500">{user?.name}</span>
+          <span className="text-teal-400">{user?.name}</span>
           <button
             type="button"
             onClick={handleLogout}

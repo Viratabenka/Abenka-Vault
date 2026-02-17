@@ -184,7 +184,17 @@ function PhaseBanner({
   );
 }
 
-function FounderView({ data }: { data: CompanyDashboardFounder }) {
+function FounderView({
+  data,
+  chartData,
+  chartProjectId,
+  setChartProjectId,
+}: {
+  data: CompanyDashboardFounder;
+  chartData: ContributionHoursByProject[];
+  chartProjectId: string | null;
+  setChartProjectId: (id: string | null) => void;
+}) {
   const { phases, currentPhaseName, totalEquityInPool, myContribution, allocatedEquity, equityPercent, notionalIncome, withdrawnIncome, balanceAbenka, revenueSummary } = data;
   return (
     <div className="max-w-5xl mx-auto space-y-10">
@@ -196,6 +206,57 @@ function FounderView({ data }: { data: CompanyDashboardFounder }) {
       <PhaseBanner phases={phases} currentPhaseName={currentPhaseName} totalEquityInPool={totalEquityInPool} revenueSummary={revenueSummary} />
 
       {revenueSummary && <RevenueSummaryBlock summary={revenueSummary} />}
+
+      <section
+        className={`rounded-xl overflow-hidden border ${
+          currentPhaseName === 'Sprout'
+            ? 'bg-green-500/5 border-green-500/40 ring-1 ring-green-500/20'
+            : 'bg-vault-card border-vault-border'
+        }`}
+      >
+        <div className={`px-6 py-4 border-b flex flex-wrap items-center justify-between gap-4 ${currentPhaseName === 'Sprout' ? 'border-green-500/40' : 'border-vault-border'}`}>
+          <div>
+            {currentPhaseName === 'Sprout' && (
+              <span className="inline-block px-2 py-0.5 rounded text-xs font-medium bg-green-500/20 text-green-400 border border-green-500/40 mb-2">
+                Sprout phase
+              </span>
+            )}
+            <p className="text-xs font-medium uppercase tracking-wider text-slate-500">Contribution hours</p>
+            <h2 className="text-lg font-semibold text-white mt-0.5">Founder-wise total contribution hours</h2>
+          </div>
+          {chartData.length > 0 && (
+            <div className="flex items-center gap-2">
+              <label htmlFor="chart-project-founder" className="text-slate-400 text-sm whitespace-nowrap">Project</label>
+              <select
+                id="chart-project-founder"
+                value={chartProjectId ?? 'all'}
+                onChange={(e) => setChartProjectId(e.target.value === 'all' ? null : e.target.value)}
+                className="px-3 py-2 rounded-lg bg-vault-dark border border-vault-border text-white text-sm min-w-[180px]"
+              >
+                {chartData.map((opt) => (
+                  <option key={opt.projectId ?? 'all'} value={opt.projectId ?? 'all'}>
+                    {opt.projectName}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+        </div>
+        <div className="p-6">
+          {chartData.length > 0 ? (
+            <FounderHoursBarChart
+              key={chartProjectId ?? 'all'}
+              data={
+                chartData.find(
+                  (d) => String(d.projectId ?? 'all') === String(chartProjectId ?? 'all')
+                ) ?? chartData[0]
+              }
+            />
+          ) : (
+            <p className="text-slate-500 text-sm">No contribution hours data yet. Log time in projects to see the chart.</p>
+          )}
+        </div>
+      </section>
 
       <section className="bg-vault-card border border-vault-border rounded-xl overflow-hidden">
         <div className="px-6 py-4 border-b border-vault-border">
@@ -347,7 +408,16 @@ export default function CompanyDashboard() {
   if (!data) return null;
 
   if (data.view === 'founder') {
-    return <FounderView data={data} />;
+    const founderChartData: ContributionHoursByProject[] =
+      chartHoursData && chartHoursData.length > 0 ? chartHoursData : [];
+    return (
+      <FounderView
+        data={data}
+        chartData={founderChartData}
+        chartProjectId={chartProjectId}
+        setChartProjectId={setChartProjectId}
+      />
+    );
   }
 
   const adminData = data as CompanyDashboardAdmin;
