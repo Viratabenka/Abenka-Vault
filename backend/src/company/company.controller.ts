@@ -20,4 +20,9 @@ export class CompanyController {
   getContributionHoursByProject() {
     return this.company.getContributionHoursByProject();
   }
+
+  @Get('health')
+  getCompanyHealth() {
+    return this.company.getCompanyHealth();
+  }
 }

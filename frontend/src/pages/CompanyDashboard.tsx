@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useState } from 'react';
 import { companyApi, contributionsApi, exportsApi, projectsApi } from '../api/client';
-import type { CompanyDashboardAdmin, CompanyDashboardFounder, CompanyPhase, RevenueSummary, ContributionHoursByProject } from '../api/client';
+import type { CompanyDashboardAdmin, CompanyDashboardFounder, CompanyPhase, RevenueSummary, ContributionHoursByProject, CompanyHealth } from '../api/client';
 
 type Dashboard = Awaited<ReturnType<typeof companyApi.dashboard>>;
 
@@ -44,6 +44,70 @@ function RevenueSummaryBlock({ summary }: { summary: RevenueSummary }) {
             </div>
           </div>
         )}
+      </div>
+    </section>
+  );
+}
+
+const EMPTY_HEALTH: CompanyHealth = {
+  totalRevenue: 0,
+  totalExpense: 0,
+  totalExecutedPayouts: 0,
+  totalNotionalIncome: 0,
+};
+
+function CompanyHealthCard({ health }: { health: CompanyHealth | null }) {
+  const h = health ?? EMPTY_HEALTH;
+  const finalAmount =
+    h.totalRevenue - h.totalExpense - h.totalExecutedPayouts - h.totalNotionalIncome;
+  const isPositive = finalAmount >= 0;
+  return (
+    <section className="bg-vault-card border border-vault-border rounded-xl overflow-hidden">
+      <div className="px-6 py-4 border-b border-vault-border flex items-center justify-between">
+        <div>
+          <p className="text-xs font-medium uppercase tracking-wider text-slate-500">Overview</p>
+          <h2 className="text-lg font-semibold text-white mt-0.5">Company Health</h2>
+        </div>
+        {!health && (
+          <p className="text-amber-400/90 text-xs">Could not load company health. Restart backend and refresh.</p>
+        )}
+      </div>
+      <div className="p-6">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          <div className="p-4 rounded-lg bg-vault-dark/60 border border-vault-border">
+            <p className="text-slate-400 text-xs font-medium uppercase tracking-wider">Total revenue</p>
+            <p className="text-xl font-semibold text-green-400 mt-1">
+              ₹{h.totalRevenue.toLocaleString('en-IN')}
+            </p>
+          </div>
+          <div className="p-4 rounded-lg bg-vault-dark/60 border border-vault-border">
+            <p className="text-slate-400 text-xs font-medium uppercase tracking-wider">Total expenses</p>
+            <p className="text-xl font-semibold text-red-400 mt-1">
+              ₹{h.totalExpense.toLocaleString('en-IN')}
+            </p>
+          </div>
+          <div className="p-4 rounded-lg bg-vault-dark/60 border border-vault-border">
+            <p className="text-slate-400 text-xs font-medium uppercase tracking-wider">Total payouts</p>
+            <p className="text-xl font-semibold text-amber-400 mt-1">
+              ₹{h.totalExecutedPayouts.toLocaleString('en-IN')}
+            </p>
+          </div>
+          <div className="p-4 rounded-lg bg-vault-dark/60 border border-vault-border">
+            <p className="text-slate-400 text-xs font-medium uppercase tracking-wider">Total notional income</p>
+            <p className="text-xl font-semibold text-white mt-1">
+              ₹{h.totalNotionalIncome.toLocaleString('en-IN')}
+            </p>
+          </div>
+        </div>
+        <div className="mt-4 pt-4 border-t border-vault-border">
+          <p className="text-slate-400 text-xs font-medium uppercase tracking-wider">Final amount</p>
+          <p
+            className={`text-2xl font-semibold mt-1 ${isPositive ? 'text-green-400' : 'text-red-400'}`}
+          >
+            ₹{finalAmount.toLocaleString('en-IN')}
+          </p>
+          <p className="text-slate-500 text-xs mt-0.5">Revenue − Expenses − Payouts − Notional income</p>
+        </div>
       </div>
     </section>
   );
@@ -189,11 +253,13 @@ function FounderView({
   chartData,
   chartProjectId,
   setChartProjectId,
+  companyHealth,
 }: {
   data: CompanyDashboardFounder;
   chartData: ContributionHoursByProject[];
   chartProjectId: string | null;
   setChartProjectId: (id: string | null) => void;
+  companyHealth: CompanyHealth | null;
 }) {
   const { phases, currentPhaseName, totalEquityInPool, myContribution, allocatedEquity, equityPercent, notionalIncome, withdrawnIncome, balanceAbenka, revenueSummary } = data;
   return (
@@ -206,6 +272,8 @@ function FounderView({
       <PhaseBanner phases={phases} currentPhaseName={currentPhaseName} totalEquityInPool={totalEquityInPool} revenueSummary={revenueSummary} />
 
       {revenueSummary && <RevenueSummaryBlock summary={revenueSummary} />}
+
+      <CompanyHealthCard health={companyHealth} />
 
       <section
         className={`rounded-xl overflow-hidden border ${
@@ -359,16 +427,19 @@ export default function CompanyDashboard() {
     projectId: string;
     byFounder: Array<{ userId: string; name: string; hours: number }>;
   } | null>(null);
+  const [companyHealth, setCompanyHealth] = useState<CompanyHealth | null>(null);
 
   useEffect(() => {
     Promise.all([
       companyApi.dashboard(),
       companyApi.contributionHoursByProject().catch(() => null),
       projectsApi.list().then((list) => list.map((p) => ({ id: p.id, name: p.name }))).catch(() => []),
-    ]).then(([dashboard, hoursByProject, projects]) => {
+      companyApi.companyHealth().catch(() => null),
+    ]).then(([dashboard, hoursByProject, projects, health]) => {
       setData(dashboard);
       setChartHoursData(hoursByProject ?? null);
       setProjectsList(projects);
+      setCompanyHealth(health ?? null);
     }).catch((e) => setError(e.message)).finally(() => setLoading(false));
   }, []);
 
@@ -416,6 +487,7 @@ export default function CompanyDashboard() {
         chartData={founderChartData}
         chartProjectId={chartProjectId}
         setChartProjectId={setChartProjectId}
+        companyHealth={companyHealth}
       />
     );
   }
@@ -471,6 +543,8 @@ export default function CompanyDashboard() {
       <PhaseBanner phases={phases ?? []} currentPhaseName={currentPhaseName} totalEquityInPool={totalEquityInPool} revenueSummary={adminData.revenueSummary} />
 
       {adminData.revenueSummary && <RevenueSummaryBlock summary={adminData.revenueSummary} />}
+
+      <CompanyHealthCard health={companyHealth} />
 
       <section className="bg-vault-card border border-vault-border rounded-xl overflow-hidden">
         <div className="px-6 py-4 border-b border-vault-border">

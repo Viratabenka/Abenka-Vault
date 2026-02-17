@@ -343,4 +343,61 @@ export class CompanyService {
       })),
     };
   }
+
+  /** Company health metrics for all roles (founder + admin). */
+  async getCompanyHealth(): Promise<{
+    totalRevenue: number;
+    totalExpense: number;
+    totalExecutedPayouts: number;
+    totalNotionalIncome: number;
+  }> {
+    try {
+      const [revenueSummary, payoutSum, phases, timeContributions] = await Promise.all([
+        this.revenue.getCompanySummary().catch(() => this.emptyRevenueSummary()),
+        this.prisma.payout.aggregate({
+          where: { status: 'EXECUTED' },
+          _sum: { amount: true },
+        }),
+        this.prisma.companyPhase.findMany({ orderBy: { sortOrder: 'asc' } }),
+        this.prisma.contribution.findMany({
+          where: { type: 'TIME' },
+          select: { userId: true, hours: true },
+        }),
+      ]);
+      const currentPhase = phases[0] ?? null;
+      const phaseMultiplier = currentPhase?.salesWeightageMultiplier != null ? Number(currentPhase.salesWeightageMultiplier) : null;
+      let salesTotals = { byUserId: new Map<string, { notional: number; hours: number }>(), totalNotional: 0, totalHours: 0 };
+      try {
+        salesTotals = await this.sales.getSalesDerivedTotals(phaseMultiplier);
+      } catch {
+        // ignore
+      }
+      const timeHoursByUser = new Map<string, number>();
+      for (const c of timeContributions) {
+        const h = Number(c.hours ?? 0);
+        timeHoursByUser.set(c.userId, (timeHoursByUser.get(c.userId) ?? 0) + h);
+      }
+      const allUserIds = new Set([...timeHoursByUser.keys(), ...salesTotals.byUserId.keys()]);
+      let totalNotionalIncome = 0;
+      for (const uid of allUserIds) {
+        const timeHours = timeHoursByUser.get(uid) ?? 0;
+        const salesNotional = salesTotals.byUserId.get(uid)?.notional ?? 0;
+        totalNotionalIncome += timeHours * NOTIONAL_RATE_PER_HOUR + salesNotional;
+      }
+      const totalExecutedPayouts = Number(payoutSum._sum.amount ?? 0);
+      return {
+        totalRevenue: revenueSummary.totalRevenue ?? 0,
+        totalExpense: revenueSummary.totalExpense ?? 0,
+        totalExecutedPayouts: Math.round(totalExecutedPayouts * 100) / 100,
+        totalNotionalIncome: Math.round(totalNotionalIncome * 100) / 100,
+      };
+    } catch {
+      return {
+        totalRevenue: 0,
+        totalExpense: 0,
+        totalExecutedPayouts: 0,
+        totalNotionalIncome: 0,
+      };
+    }
+  }
 }

@@ -243,11 +243,19 @@ export type CompanyDashboardFounder = {
   revenueSummary?: RevenueSummary;
 };
 
+export type CompanyHealth = {
+  totalRevenue: number;
+  totalExpense: number;
+  totalExecutedPayouts: number;
+  totalNotionalIncome: number;
+};
+
 export const companyApi = {
   dashboard: () =>
     api<CompanyDashboardAdmin | CompanyDashboardFounder>('/company/dashboard'),
   contributionHoursByProject: () =>
     api<ContributionHoursByProject[]>('/company/contribution-hours-by-project'),
+  companyHealth: () => api<CompanyHealth>('/company/health'),
 };
 
 export type RevenueEntryType = 'MONTHLY_REVENUE' | 'ONE_TIME_REVENUE' | 'EXPENSE';
