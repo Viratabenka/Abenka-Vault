@@ -40,7 +40,7 @@ export default function SignUp() {
         <div className="flex justify-center mb-2">
           <img src="/logo.png" alt="" className="h-24 w-auto object-contain" aria-hidden />
         </div>
-        <p className="text-slate-400 text-center mb-8">Secure equity, clear contributions.</p>
+        <p className="text-slate-400 text-center mb-8">Where contributions meet equity.</p>
         <form
           onSubmit={handleSubmit}
           className="bg-vault-card border border-vault-border rounded-xl p-8 shadow-xl"

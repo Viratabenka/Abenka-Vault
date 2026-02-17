@@ -24,7 +24,7 @@ export default function Layout() {
         </Link>
         <div className="flex items-center gap-3">
           <img src="/logo.png" alt="" className="h-14 w-auto object-contain" aria-hidden />
-          <p className="text-slate-400 text-sm">Secure equity, clear contributions.</p>
+          <p className="text-slate-400 text-sm">Where contributions meet equity.</p>
         </div>
         <nav className="flex items-center gap-6">
           <NavLink
