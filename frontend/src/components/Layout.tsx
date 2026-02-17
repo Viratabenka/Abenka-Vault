@@ -1,4 +1,4 @@
-import { Outlet, Link, useNavigate } from 'react-router-dom';
+import { Outlet, Link, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 
 export default function Layout() {
@@ -27,19 +27,58 @@ export default function Layout() {
           <p className="text-slate-400 text-sm">Secure equity, clear contributions.</p>
         </div>
         <nav className="flex items-center gap-6">
-          <Link to="/dashboard" className="text-slate-300 hover:text-white">
+          <NavLink
+            to="/dashboard"
+            end
+            className={({ isActive }) =>
+              `text-sm font-medium transition-colors py-1 border-b-2 ${
+                isActive
+                  ? 'text-white border-white'
+                  : 'text-slate-300 hover:text-white border-transparent'
+              }`
+            }
+          >
             My dashboard
-          </Link>
-          <Link to="/projects" className="text-slate-300 hover:text-white">
+          </NavLink>
+          <NavLink
+            to="/projects"
+            className={({ isActive }) =>
+              `text-sm font-medium transition-colors py-1 border-b-2 ${
+                isActive
+                  ? 'text-white border-white'
+                  : 'text-slate-300 hover:text-white border-transparent'
+              }`
+            }
+          >
             Projects
-          </Link>
-          <Link to="/company" className="text-slate-300 hover:text-white">
+          </NavLink>
+          <NavLink
+            to="/company"
+            end
+            className={({ isActive }) =>
+              `text-sm font-medium transition-colors py-1 border-b-2 ${
+                isActive
+                  ? 'text-white border-white'
+                  : 'text-slate-300 hover:text-white border-transparent'
+              }`
+            }
+          >
             Company
-          </Link>
+          </NavLink>
           {user?.role === 'ADMIN' && (
-            <Link to="/revenue" className="text-slate-300 hover:text-white">
+            <NavLink
+              to="/revenue"
+              end
+              className={({ isActive }) =>
+                `text-sm font-medium transition-colors py-1 border-b-2 ${
+                  isActive
+                    ? 'text-white border-white'
+                    : 'text-slate-300 hover:text-white border-transparent'
+                }`
+              }
+            >
               Revenue
-            </Link>
+            </NavLink>
           )}
           <span className="text-slate-500">{user?.name}</span>
           <button
