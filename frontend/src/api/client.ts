@@ -49,6 +49,13 @@ export const authApi = {
 export const usersApi = {
   me: (id: string) => api<{ id: string; name: string; email: string; role: string }>(`/users/${id}`),
   list: () => api<{ id: string; name: string; email: string; role: string }[]>('/users'),
+  setPassword: (userId: string, newPassword: string) =>
+    api<{ id: string; email: string; name: string; role: string }>(`/users/${userId}/set-password`, {
+      method: 'POST',
+      body: JSON.stringify({ newPassword }),
+    }),
+  delete: (userId: string) =>
+    api<{ id: string; email: string }>(`/users/${userId}`, { method: 'DELETE' }),
 };
 
 export const dashboardApi = {

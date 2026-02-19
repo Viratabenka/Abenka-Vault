@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { Role } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
@@ -69,5 +69,26 @@ export class UsersService {
       where: { id },
       data: { hourlyRate },
     });
+  }
+
+  /** Admin sets a new password for a user (no current password required). */
+  async setPasswordByAdmin(userId: string, newPassword: string) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new NotFoundException('User not found');
+    const passwordHash = await bcrypt.hash(newPassword, 10);
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { passwordHash },
+    });
+    return { id: user.id, email: user.email, name: user.name, role: user.role };
+  }
+
+  /** Admin removes a user. Cascades to related data per schema. Cannot remove self. */
+  async remove(userId: string, currentUserId: string) {
+    if (userId === currentUserId) throw new ForbiddenException('You cannot remove your own user');
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new NotFoundException('User not found');
+    await this.prisma.user.delete({ where: { id: userId } });
+    return { id: user.id, email: user.email };
   }
 }

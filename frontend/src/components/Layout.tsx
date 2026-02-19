@@ -66,19 +66,34 @@ export default function Layout() {
             Company
           </NavLink>
           {user?.role === 'ADMIN' && (
-            <NavLink
-              to="/revenue"
-              end
-              className={({ isActive }) =>
-                `text-sm font-medium transition-colors py-1 border-b-2 ${
-                  isActive
-                    ? 'text-white border-white'
-                    : 'text-slate-300 hover:text-white border-transparent'
-                }`
-              }
-            >
-              Revenue
-            </NavLink>
+            <>
+              <NavLink
+                to="/revenue"
+                end
+                className={({ isActive }) =>
+                  `text-sm font-medium transition-colors py-1 border-b-2 ${
+                    isActive
+                      ? 'text-white border-white'
+                      : 'text-slate-300 hover:text-white border-transparent'
+                  }`
+                }
+              >
+                Revenue
+              </NavLink>
+              <NavLink
+                to="/users"
+                end
+                className={({ isActive }) =>
+                  `text-sm font-medium transition-colors py-1 border-b-2 ${
+                    isActive
+                      ? 'text-white border-white'
+                      : 'text-slate-300 hover:text-white border-transparent'
+                  }`
+                }
+              >
+                Users
+              </NavLink>
+            </>
           )}
           <span className="text-teal-400">{user?.name}</span>
           <button
