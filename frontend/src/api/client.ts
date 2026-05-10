@@ -313,6 +313,23 @@ export const payoutsApi = {
     api<Payout>(`/payouts/${id}/execute`, { method: 'POST' }),
 };
 
+export type ConsentRecord = { documentKey: string; agreedAt: string };
+export type ConsentUserStatus = {
+  userId: string;
+  name: string;
+  email: string;
+  role: string;
+  agreedAt: string | null;
+};
+
+export const consentsApi = {
+  my: () => api<ConsentRecord[]>('/consents/my'),
+  agree: (documentKey: string) =>
+    api('/consents', { method: 'POST', body: JSON.stringify({ documentKey }) }),
+  all: (documentKey: string) =>
+    api<ConsentUserStatus[]>(`/consents?documentKey=${encodeURIComponent(documentKey)}`),
+};
+
 async function downloadExport(path: string, filename: string) {
   const token = getToken();
   const res = await fetch(path, {

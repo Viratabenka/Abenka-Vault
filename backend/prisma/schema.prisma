@@ -68,6 +68,7 @@ model User {
   invitedUsers       User[]            @relation("UserInvites")
   invitedByUser      User?             @relation("UserInvites", fields: [invitedBy], references: [id])
   salesAllocations   SalesAllocation[]
+  consents           DocumentConsent[]
 }
 
 model Project {
@@ -270,3 +271,14 @@ model AuditLog {
   @@index([timestamp])
 }
 
+model DocumentConsent {
+  id          String   @id @default(cuid())
+  userId      String   @map("user_id")
+  documentKey String   @map("document_key")
+  agreedAt    DateTime @default(now()) @map("agreed_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, documentKey])
+  @@index([documentKey])
+}
