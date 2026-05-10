@@ -16,9 +16,6 @@ import { DashboardModule } from './dashboard/dashboard.module';
 import { ExportsModule } from './exports/exports.module';
 import { AuditModule } from './audit/audit.module';
 import { HealthModule } from './health/health.module';
-import { ClientsModule } from './clients/clients.module';
-import { CompanySettingsModule } from './company-settings/company-settings.module';
-import { InvoicesModule } from './invoices/invoices.module';
 
 @Module({
   providers: [{ provide: APP_GUARD, useClass: JwtAuthGuard }],
@@ -38,9 +35,6 @@ import { InvoicesModule } from './invoices/invoices.module';
     DashboardModule,
     ExportsModule,
     AuditModule,
-    ClientsModule,
-    CompanySettingsModule,
-    InvoicesModule,
   ],
 })
 export class AppModule {}

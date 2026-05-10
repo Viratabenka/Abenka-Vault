@@ -8,10 +8,6 @@ import ProjectDetail from './pages/ProjectDetail';
 import CompanyDashboard from './pages/CompanyDashboard';
 import Revenue from './pages/Revenue';
 import UserManagement from './pages/UserManagement';
-import Invoices from './pages/Invoices';
-import InvoiceForm from './pages/InvoiceForm';
-import InvoicePreview from './pages/InvoicePreview';
-import InvoiceSettings from './pages/InvoiceSettings';
 import Layout from './components/Layout';
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
@@ -42,11 +38,6 @@ function App() {
             <Route path="company" element={<CompanyDashboard />} />
             <Route path="revenue" element={<Revenue />} />
             <Route path="users" element={<UserManagement />} />
-            <Route path="invoices" element={<Invoices />} />
-            <Route path="invoices/new" element={<InvoiceForm />} />
-            <Route path="invoices/:id/edit" element={<InvoiceForm />} />
-            <Route path="invoices/:id" element={<InvoicePreview />} />
-            <Route path="invoice-settings" element={<InvoiceSettings />} />
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
