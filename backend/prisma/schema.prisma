@@ -42,6 +42,12 @@ enum RevenueEntryType {
   EXPENSE
 }
 
+enum InvoiceStatus {
+  DRAFT
+  SENT
+  PAID
+}
+
 model User {
   id            String    @id @default(cuid())
   email         String    @unique
@@ -268,4 +274,74 @@ model AuditLog {
   @@index([userId])
   @@index([action])
   @@index([timestamp])
+}
+
+model Client {
+  id        String    @id @default(cuid())
+  name      String
+  address   String?
+  city      String?
+  state     String?
+  zip       String?
+  country   String?
+  email     String?
+  phone     String?
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+
+  invoices  Invoice[]
+}
+
+model CompanySettings {
+  id            String   @id @default(cuid())
+  companyName   String   @map("company_name")
+  address       String?
+  city          String?
+  state         String?
+  zip           String?
+  email         String?
+  phone         String?
+  bankName      String?  @map("bank_name")
+  accountName   String?  @map("account_name")
+  accountNumber String?  @map("account_number")
+  ifscCode      String?  @map("ifsc_code")
+  bankAddress   String?  @map("bank_address")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+}
+
+model Invoice {
+  id            String        @id @default(cuid())
+  invoiceNumber String        @unique @map("invoice_number")
+  clientId      String        @map("client_id")
+  invoiceDate   DateTime      @map("invoice_date") @db.Date
+  periodStart   DateTime      @map("period_start") @db.Date
+  periodEnd     DateTime      @map("period_end") @db.Date
+  workingDays   Int?          @map("working_days")
+  status        InvoiceStatus @default(DRAFT)
+  notes         String?
+  totalAmount   Decimal       @map("total_amount") @db.Decimal(14, 2)
+  createdAt     DateTime      @default(now()) @map("created_at")
+  updatedAt     DateTime      @updatedAt @map("updated_at")
+
+  client    Client            @relation(fields: [clientId], references: [id])
+  lineItems InvoiceLineItem[]
+
+  @@index([clientId])
+  @@index([status])
+  @@index([invoiceDate])
+}
+
+model InvoiceLineItem {
+  id          String  @id @default(cuid())
+  invoiceId   String  @map("invoice_id")
+  description String
+  company     String?
+  quantity    Int     @default(1)
+  periodMonth String? @map("period_month")
+  amount      Decimal @db.Decimal(14, 2)
+  sortOrder   Int     @default(0) @map("sort_order")
+
+  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@index([invoiceId])
 }
