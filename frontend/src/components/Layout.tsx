@@ -95,6 +95,19 @@ export default function Layout() {
               </NavLink>
             </>
           )}
+          <NavLink
+            to="/documents"
+            end
+            className={({ isActive }) =>
+              `text-sm font-medium transition-colors py-1 border-b-2 ${
+                isActive
+                  ? 'text-white border-white'
+                  : 'text-slate-300 hover:text-white border-transparent'
+              }`
+            }
+          >
+            Documents
+          </NavLink>
           <span className="text-teal-400">{user?.name}</span>
           <button
             type="button"

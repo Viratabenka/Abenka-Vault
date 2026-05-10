@@ -8,6 +8,7 @@ import ProjectDetail from './pages/ProjectDetail';
 import CompanyDashboard from './pages/CompanyDashboard';
 import Revenue from './pages/Revenue';
 import UserManagement from './pages/UserManagement';
+import Documents from './pages/Documents';
 import Layout from './components/Layout';
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
@@ -38,6 +39,7 @@ function App() {
             <Route path="company" element={<CompanyDashboard />} />
             <Route path="revenue" element={<Revenue />} />
             <Route path="users" element={<UserManagement />} />
+            <Route path="documents" element={<Documents />} />
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
